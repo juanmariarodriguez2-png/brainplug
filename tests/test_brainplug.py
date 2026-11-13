@@ -10,10 +10,10 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pytest
 
-from brainprint import analysis, app, brain, demo, sources
-from brainprint.__main__ import main
-from brainprint.export import export_vault
-from brainprint.render import render
+from brainplug import analysis, app, brain, demo, sources
+from brainplug.__main__ import main
+from brainplug.export import export_vault
+from brainplug.render import render
 
 TZ = ZoneInfo("Europe/Madrid")
 HEX = "0123456789abcdef0123456789abcdef"
@@ -247,8 +247,8 @@ def test_export_vault(tmp_path):
     items = demo.generate(n=90)
     payload = analysis.analyse(items, TZ, n_topics=5)
     written = export_vault(items, payload, tmp_path)
-    base = tmp_path / "Brainprint"
-    assert (base / "Brainprint.md").exists() and len(list((base / "Topics").glob("*.md"))) == 5
+    base = tmp_path / "Brainplug"
+    assert (base / "Brainplug.md").exists() and len(list((base / "Topics").glob("*.md"))) == 5
     chats = list((base / "Items" / "ChatGPT").glob("*.md"))
     assert chats and "## What I wrote" in chats[0].read_text(encoding="utf-8")
     assert not (base / "Items" / "Obsidian").exists()  # vault notes are linked, never copied
@@ -266,7 +266,7 @@ def test_app_roundtrip_and_token():
 
         def call(path, method, body=b""):
             req = urllib.request.Request(url + path, data=body, method=method,
-                                         headers={"X-Brainprint-Token": state.token})
+                                         headers={"X-Brainplug-Token": state.token})
             return urllib.request.urlopen(req).read()
 
         convs = []

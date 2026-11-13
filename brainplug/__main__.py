@@ -1,11 +1,11 @@
 """Command line interface.
 
-    python -m brainprint app                      # drag-and-drop in your browser
-    python -m brainprint build export.zip ~/Vault Sent.mbox -o my_brain.html
-    python -m brainprint sync --init export.zip ~/Vault && python -m brainprint sync --watch
-    python -m brainprint brain ~/Vault            # a memory your AI can read and write
-    python -m brainprint mcp --brain ~/Vault export.zip
-    python -m brainprint demo --open
+    python -m brainplug app                      # drag-and-drop in your browser
+    python -m brainplug build export.zip ~/Vault Sent.mbox -o my_brain.html
+    python -m brainplug sync --init export.zip ~/Vault && python -m brainplug sync --watch
+    python -m brainplug brain ~/Vault            # a memory your AI can read and write
+    python -m brainplug mcp --brain ~/Vault export.zip
+    python -m brainplug demo --open
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from .render import render
 
 INPUT_HELP = ("any mix of: ChatGPT/Claude export (.zip or conversations.json), Gemini Takeout (.zip or "
               "MyActivity.json), Obsidian vault or notes folder, Notion export .zip, Gmail .mbox, "
-              "WhatsApp chat (.txt or .zip), Word and PDF files, a Brainprint capture .json")
+              "WhatsApp chat (.txt or .zip), Word and PDF files, a Brainplug capture .json")
 
 
 def _renames(pairs: list[str] | None) -> dict[int, str]:
@@ -45,20 +45,20 @@ def _options(args) -> Options:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
-        prog="brainprint",
+        prog="brainplug",
         description="A second brain for you and your AI assistants: a 3D map of everything you write and a memory they plug into.",
     )
-    ap.add_argument("--version", action="version", version=f"brainprint {__version__}")
+    ap.add_argument("--version", action="version", version=f"brainplug {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def common(p):
-        p.add_argument("-o", "--out", default="brainprint.html", help="output HTML file")
+        p.add_argument("-o", "--out", default="brainplug.html", help="output HTML file")
         p.add_argument("--topics", type=int, help="number of topics (default: automatic)")
         p.add_argument("--private", action="store_true",
                        help="leave titles and text out of the HTML (safe to share)")
         p.add_argument("--rename", action="append", metavar="N=NAME",
                        help="rename topic N as listed in the terminal, e.g. --rename 2=Python")
-        p.add_argument("--title", default="My Brainprint", help="title shown on the page")
+        p.add_argument("--title", default="My Brainplug", help="title shown on the page")
         p.add_argument("--lang", choices=["en", "es"], default="en", help="page language")
         p.add_argument("--tz", help="time zone, e.g. Europe/Madrid (default: this computer's)")
         p.add_argument("--open", action="store_true", help="open the result in your browser")
@@ -91,16 +91,16 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--port", type=int, default=8765)
     a.add_argument("--no-browser", action="store_true", help="do not open the browser")
 
-    s = sub.add_parser("sync", help="rebuild from the inputs saved in brainprint.json; --watch keeps it up to date")
+    s = sub.add_parser("sync", help="rebuild from the inputs saved in brainplug.json; --watch keeps it up to date")
     s.add_argument("inputs", nargs="*", help="with --init: " + INPUT_HELP)
-    s.add_argument("--init", action="store_true", help="save these inputs and options to brainprint.json")
-    s.add_argument("--config", default="brainprint.json", help="settings file (default: ./brainprint.json)")
+    s.add_argument("--init", action="store_true", help="save these inputs and options to brainplug.json")
+    s.add_argument("--config", default="brainplug.json", help="settings file (default: ./brainplug.json)")
     s.add_argument("--watch", action="store_true", help="keep running and rebuild when something changes")
     s.add_argument("--every", type=float, default=30, metavar="SECONDS", help="how often --watch looks for changes")
     reading(s), extras(s), common(s)
 
     g = sub.add_parser("brain", help="set up a memory your AI assistants can read and write, inside your vault")
-    g.add_argument("vault", help="your Obsidian vault, or any folder; a Brainprint/ folder is created inside")
+    g.add_argument("vault", help="your Obsidian vault, or any folder; a Brainplug/ folder is created inside")
     g.add_argument("inputs", nargs="*", help="with --context: exports to include as well")
     g.add_argument("--context", action="store_true", help="print the briefing, to paste into an assistant without MCP")
     g.add_argument("--remember", metavar="TEXT", help="save a memory yourself, from the terminal")
@@ -113,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     m = sub.add_parser("mcp", help="serve your brain to your AI assistants (Model Context Protocol)")
     m.add_argument("inputs", nargs="*", help=INPUT_HELP)
     m.add_argument("--brain", metavar="DIR",
-                   help="your vault: it is read, and assistants can save memories in DIR/Brainprint/Memory")
+                   help="your vault: it is read, and assistants can save memories in DIR/Brainplug/Memory")
     m.add_argument("--topics", type=int, help="number of topics (default: automatic)")
     m.add_argument("--tz", help="time zone, e.g. Europe/Madrid (default: this computer's)")
     reading(m)
@@ -129,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         print(describe(items))
         payload = analysis.analyse(items, tz=local_tz(args.tz), n_topics=args.topics or 9, private=args.private,
                                    rename=_renames(args.rename),
-                                   title="Demo Brainprint" if args.title == "My Brainprint" else args.title)
+                                   title="Demo Brainplug" if args.title == "My Brainplug" else args.title)
         print(f"Found {len(payload['topics'])} topics: " + ", ".join(t["name"] for t in payload["topics"]))
         out = render(payload, args.out, lang=args.lang)
         if args.json:
@@ -144,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         from .agent import Brain, make_server
         vault = getattr(args, "brain", None) or getattr(args, "vault", None)
         if args.cmd == "mcp" and not args.inputs and not args.notion and not vault:
-            ap.error("mcp needs your vault or your files, e.g.: brainprint mcp --brain ~/Vault export.zip")
+            ap.error("mcp needs your vault or your files, e.g.: brainplug mcp --brain ~/Vault export.zip")
         if args.cmd == "brain" and args.remember:
             path = memory.remember(vault, args.remember, kind=args.kind, pin=args.pin, source="me")
             print(f"Saved {path.resolve()}")
@@ -162,13 +162,13 @@ def main(argv: list[str] | None = None) -> int:
                   f"  About me.md   a few lines about you; assistants read them at the start of a conversation\n"
                   f"  Memory/       what assistants are asked to remember, one note each\n\n"
                   f"Connect an assistant\n"
-                  f"  Claude Code     claude mcp add --transport stdio brainprint -- brainprint mcp --brain \"{vault}\"\n"
+                  f"  Claude Code     claude mcp add --transport stdio brainplug -- brainplug mcp --brain \"{vault}\"\n"
                   f"  Claude Desktop  Settings > Developer > Edit Config, and add:\n"
-                  f"                  {json.dumps({'mcpServers': {'brainprint': {'command': 'brainprint', 'args': server}}})}\n\n"
+                  f"                  {json.dumps({'mcpServers': {'brainplug': {'command': 'brainplug', 'args': server}}})}\n\n"
                   f"Add your exports after the folder to make them part of the brain:\n"
-                  f"  brainprint mcp --brain \"{vault}\" chatgpt-export.zip Sent.mbox\n\n"
+                  f"  brainplug mcp --brain \"{vault}\" chatgpt-export.zip Sent.mbox\n\n"
                   f"For an assistant without MCP, print a briefing to paste:\n"
-                  f"  brainprint brain \"{vault}\" --context")
+                  f"  brainplug brain \"{vault}\" --context")
             return 0
         try:
             o = Options(inputs=inputs, me=list(args.me or []), pdf=args.pdf, notion=args.notion)
@@ -182,7 +182,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "brain":
             print(brain.context())
             return 0
-        log(f"Brainprint is ready: {len(brain.items)} items" + (f", memories go to {vault}" if vault else "")
+        log(f"Brainplug is ready: {len(brain.items)} items" + (f", memories go to {vault}" if vault else "")
             + ". Waiting for an MCP client…")
         make_server(brain).run()
         return 0
@@ -194,10 +194,10 @@ def main(argv: list[str] | None = None) -> int:
                 if not args.inputs and not args.notion:
                     ap.error("sync --init needs your files and folders")
                 path = sync.write_config(_options(args), args.config)
-                print(f"Saved {path.resolve()}. Now run: brainprint sync   (or: brainprint sync --watch)")
+                print(f"Saved {path.resolve()}. Now run: brainplug sync   (or: brainplug sync --watch)")
                 return 0
             if args.inputs:
-                ap.error("to change the inputs, run sync --init again (or edit brainprint.json)")
+                ap.error("to change the inputs, run sync --init again (or edit brainplug.json)")
             if args.watch:
                 print(f"Watching the inputs in {args.config} every {args.every:g} s. Press Ctrl+C to stop.")
                 try:

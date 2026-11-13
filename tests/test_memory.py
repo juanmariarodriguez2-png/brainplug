@@ -3,9 +3,9 @@
 import json
 from zoneinfo import ZoneInfo
 
-from brainprint import memory, sources
-from brainprint.__main__ import main
-from brainprint.agent import Brain
+from brainplug import memory, sources
+from brainplug.__main__ import main
+from brainplug.agent import Brain
 from helpers import notes_folder
 
 TZ = ZoneInfo("Europe/Madrid")
@@ -25,7 +25,7 @@ def test_memories_are_ordinary_notes(tmp_path):
     assert all(ch not in b.name for ch in '/\\:<>?') and c.stem.endswith(" 2")
     text = a.read_text(encoding="utf-8")
     assert "kind: preference" in text and "saved_by: Claude Desktop" in text and "pinned: true" in text
-    assert "tags: [brainprint/memory, brainprint/preference, style, answers]" in text
+    assert "tags: [brainplug/memory, brainplug/preference, style, answers]" in text
     assert text.rstrip().endswith("I prefer short answers, in Spanish") and "\n# " not in text  # named after its own words
     assert "kind: note" in b.read_text(encoding="utf-8") and "# etc passwd a bad title" in b.read_text(encoding="utf-8")
 
@@ -35,7 +35,7 @@ def test_memories_are_ordinary_notes(tmp_path):
     assert b.exists() and len(memory.memories(vault)) == 2  # archived, not deleted
     assert memory.forget(vault, "no such note") is None and memory.forget(vault, "../About me") is None
 
-    (base / "About me.md").write_text("---\ncreated: 2026-01-01\n---\n# About me\n\n<!-- brainprint: fill this in. -->\n\n"
+    (base / "About me.md").write_text("---\ncreated: 2026-01-01\n---\n# About me\n\n<!-- brainplug: fill this in. -->\n\n"
                                       "- Name: Ada\n- What I do:\n- How I like answers: brief\n", encoding="utf-8")
     assert memory.profile(vault) == "# About me\n- Name: Ada\n- How I like answers: brief"
 
@@ -52,7 +52,7 @@ def test_loader_reads_memories_and_not_its_own_export(tmp_path, capsys):
 
     # writing the Obsidian export into the same vault must not feed it back in as new notes
     assert main(["build", str(vault), "--vault", str(vault), "-o", str(tmp_path / "b.html"), "--topics", "4"]) == 0
-    assert (vault / "Brainprint" / "Topics").is_dir() and (vault / "Brainprint" / "Brainprint.md").exists()
+    assert (vault / "Brainplug" / "Topics").is_dir() and (vault / "Brainplug" / "Brainplug.md").exists()
     again = sources.load([vault])
     assert sorted(i.id for i in again) == sorted(i.id for i in first)
     assert len(sources.load([tmp_path])) == 41  # also when the vault is a sub-folder of what you pass
@@ -85,7 +85,7 @@ def test_brain_starts_empty_and_learns(tmp_path):
     assert brain.refresh(force=True) and "Reading list" in brain.recall("behavioural economics nudges")
     mine = brain.recall("behavioural economics").split(" ")[0]
     assert "Only memories saved through `remember`" in brain.forget(mine) and (vault / "Reading list.md").exists()
-    assert len(list((vault / "Brainprint" / "Memory").glob("*.md"))) == 4  # the archived note is still a file
+    assert len(list((vault / "Brainplug" / "Memory").glob("*.md"))) == 4  # the archived note is still a file
 
     read_only = Brain(load(), tz=TZ)
     assert "read-only" in read_only.remember("something") and "remember(" not in read_only.context()
@@ -113,9 +113,9 @@ def test_brain_command(tmp_path, capsys):
     vault = tmp_path / "My Vault"
     assert main(["brain", str(vault), "--lang", "es"]) == 0
     out = capsys.readouterr().out
-    assert "# Sobre mí" in (vault / "Brainprint" / "About me.md").read_text(encoding="utf-8")
+    assert "# Sobre mí" in (vault / "Brainplug" / "About me.md").read_text(encoding="utf-8")
     config = json.loads(next(line for line in out.splitlines() if '"mcpServers"' in line))
-    assert config["mcpServers"]["brainprint"]["args"] == ["mcp", "--brain", str(vault.resolve())]
+    assert config["mcpServers"]["brainplug"]["args"] == ["mcp", "--brain", str(vault.resolve())]
     assert main(["brain", str(vault), "--remember", "Prefiero respuestas cortas", "--kind", "preference", "--pin"]) == 0
     assert main(["brain", str(vault), "--context"]) == 0
     assert "Keep in mind:\n- Prefiero respuestas cortas" in capsys.readouterr().out

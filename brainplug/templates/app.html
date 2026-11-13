@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Brainprint</title>
+<title>Brainplug</title>
 <style>
   :root { --line: #232328; --text: #f4f4f6; --soft: #c9c9d1; --muted: #8d8d96;
     --spectrum: linear-gradient(90deg, #6f8cff 0%, #a77bff 22%, #ff6ad5 45%, #ff5d7a 62%, #ff8a3c 82%, #ffb62e 100%);
@@ -49,7 +49,7 @@
 </head>
 <body>
 <main>
-  <p class="mark">Brainprint</p>
+  <p class="mark">Brainplug</p>
   <h1><span data-t="say"></span></h1>
   <p class="lead" data-t="lead"></p>
 
@@ -71,7 +71,7 @@
   </details>
 
   <div class="opts">
-    <label><span data-t="title"></span><input type="text" id="title" value="My Brainprint"></label>
+    <label><span data-t="title"></span><input type="text" id="title" value="My Brainplug"></label>
     <label><span data-t="lang"></span><select id="lang"><option value="en">English</option><option value="es">Español</option></select></label>
     <label><span data-t="topics"></span><input type="text" id="topics" placeholder="auto"></label>
     <span></span>
@@ -109,7 +109,7 @@ const T = ES ? {
   title: 'Título', lang: 'Idioma de la página', me: 'Quién eres: tu correo (Gmail) y tu nombre tal como sale en WhatsApp, separados por comas. Opcional.', topics: 'Número de temas',
   private: 'Modo privado: no guardar títulos ni texto en el resultado (para compartirlo)',
   pdf: 'Leer también los PDF que haya dentro de las carpetas (por defecto se saltan)',
-  go: 'Crear mi brainprint', clear: 'Vaciar', done: 'Listo', open: 'Abrir mi brainprint', save: 'Descargar HTML',
+  go: 'Crear mi brainplug', clear: 'Vaciar', done: 'Listo', open: 'Abrir mi brainplug', save: 'Descargar HTML',
   foot: 'Funciona solo en 127.0.0.1. Cierra la terminal (Ctrl+C) para parar y borrar las copias temporales.',
   copying: (a, b) => `Copiando ${a} de ${b}…`, analysing: 'Analizando… (los buzones grandes pueden tardar unos minutos)',
   none: 'Añade primero algún archivo o carpeta.', summary: (n, s) => `${n} elementos · ${s}`, filesN: n => `${n} archivos listos`,
@@ -123,7 +123,7 @@ const T = ES ? {
   title: 'Title', lang: 'Page language', me: 'Who you are: your email (Gmail) and your name as it appears in WhatsApp, separated by commas. Optional.', topics: 'Number of topics',
   private: 'Private mode: keep titles and text out of the result (safe to share)',
   pdf: 'Also read the PDFs inside folders (skipped by default)',
-  go: 'Build my brainprint', clear: 'Clear', done: 'Done', open: 'Open my brainprint', save: 'Download HTML',
+  go: 'Build my brainplug', clear: 'Clear', done: 'Done', open: 'Open my brainplug', save: 'Download HTML',
   foot: 'Runs on 127.0.0.1 only. Close the terminal (Ctrl+C) to stop and delete the temporary copies.',
   copying: (a, b) => `Copying ${a} of ${b}…`, analysing: 'Analysing… (large mailboxes can take a few minutes)',
   none: 'Add a file or folder first.', summary: (n, s) => `${n} items · ${s}`, filesN: n => `${n} files ready`,
@@ -131,7 +131,7 @@ const T = ES ? {
 document.querySelectorAll('[data-t]').forEach(el => { el.textContent = T[el.dataset.t]; });
 if (ES) document.getElementById('lang').value = 'es';
 const $ = id => document.getElementById(id);
-const api = (path, opts = {}) => fetch(path, { ...opts, headers: { 'X-Brainprint-Token': TOKEN, ...(opts.headers || {}) } });
+const api = (path, opts = {}) => fetch(path, { ...opts, headers: { 'X-Brainplug-Token': TOKEN, ...(opts.headers || {}) } });
 
 const queue = [];          // {file, path}
 const marked = new Set();  // vault roots already flagged
@@ -139,13 +139,13 @@ const KEEP = ['.zip', '.md', '.markdown', '.txt', '.mbox', '.docx', '.pdf'];
 function wanted(path) {
   const parts = path.split('/'), name = parts[parts.length - 1].toLowerCase();
   if (parts.slice(0, -1).some(p => p.startsWith('.') || p === 'node_modules')) return false;
-  if (name.endsWith('.json')) return parts.length === 1 || name === 'conversations.json' || name.includes('activ') || name.includes('brainprint');
+  if (name.endsWith('.json')) return parts.length === 1 || name === 'conversations.json' || name.includes('activ') || name.includes('brainplug');
   if (name.endsWith('.html')) return name.includes('activ');  // Gemini's MyActivity.html
   return KEEP.some(ext => name.endsWith(ext));
 }
 function add(file, path) {
   const vault = path.match(/^([^/]+)\/\.obsidian\//);
-  if (vault && !marked.has(vault[1])) { marked.add(vault[1]); queue.push({ file: new Blob(['{}']), path: `${vault[1]}/.obsidian/brainprint.json`, hidden: true }); }
+  if (vault && !marked.has(vault[1])) { marked.add(vault[1]); queue.push({ file: new Blob(['{}']), path: `${vault[1]}/.obsidian/brainplug.json`, hidden: true }); }
   if (wanted(path)) queue.push({ file, path });
 }
 function list() {

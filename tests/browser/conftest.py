@@ -10,14 +10,14 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-CHROME = os.environ.get("BRAINPRINT_CHROME", "")
+CHROME = os.environ.get("BRAINPLUG_CHROME", "")
 GPU = ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
 
 
 def pytest_collection_modifyitems(config, items):
     reason = None
     if not CHROME or not Path(CHROME).exists():
-        reason = "set BRAINPRINT_CHROME to a Chrome for Testing or Chromium binary"
+        reason = "set BRAINPLUG_CHROME to a Chrome for Testing or Chromium binary"
     else:
         try:
             import playwright  # noqa: F401

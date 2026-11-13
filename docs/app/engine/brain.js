@@ -1,5 +1,5 @@
 // Geometry for the brain-shaped point cloud and for the spiral galaxy.
-// A port of brainprint/brain.py: x = left/right, y = up, z = front (+) / back (-).
+// A port of brainplug/brain.py: x = left/right, y = up, z = front (+) / back (-).
 
 const HEMISPHERES = [[[-0.30, 0.15, 0.00], [0.52, 0.62, 0.95]], [[0.30, 0.15, 0.00], [0.52, 0.62, 0.95]]];
 const TEMPORAL = [[[-0.50, -0.22, 0.18], [0.30, 0.30, 0.55]], [[0.50, -0.22, 0.18], [0.30, 0.30, 0.55]]];

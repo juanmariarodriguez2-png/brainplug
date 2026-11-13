@@ -26,14 +26,14 @@ def local_tz(name: str | None = None):
 @dataclass
 class Options:
     inputs: list[str] = field(default_factory=list)
-    out: str = "brainprint.html"
+    out: str = "brainplug.html"
     me: list[str] = field(default_factory=list)  # your email(s) and your WhatsApp name
     pdf: bool = False  # also read PDFs found inside folders
     notion: bool = False  # read Notion through its API (NOTION_TOKEN)
     topics: int | None = None
     private: bool = False
     rename: dict[int, str] = field(default_factory=dict)
-    title: str = "My Brainprint"
+    title: str = "My Brainplug"
     lang: str = "en"
     tz: str | None = None
     vault: str | None = None  # write Markdown notes into this Obsidian vault
@@ -81,7 +81,7 @@ def run(o: Options, say: Callable[[str], None] = print) -> tuple[list[sources.It
     if o.vault:
         from .export import export_vault
         n = export_vault(items, payload, o.vault)
-        say(f"Wrote {n} notes to {Path(o.vault).resolve() / 'Brainprint'}")
+        say(f"Wrote {n} notes to {Path(o.vault).resolve() / 'Brainplug'}")
     if o.dataset:
         from .export import export_dataset
         n = export_dataset(items, payload, o.dataset)

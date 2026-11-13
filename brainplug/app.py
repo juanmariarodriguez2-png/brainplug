@@ -1,4 +1,4 @@
-"""A tiny local web app: drop your files in the browser, get your brainprint.
+"""A tiny local web app: drop your files in the browser, get your brainplug.
 
 It listens only on this computer (127.0.0.1) and needs a secret token that is
 part of the URL it opens, so no other website or device can talk to it.
@@ -29,7 +29,7 @@ CHUNK = 1 << 20
 class State:
     def __init__(self) -> None:
         self.token = secrets.token_urlsafe(18)
-        self.dir = Path(tempfile.mkdtemp(prefix="brainprint_app_"))
+        self.dir = Path(tempfile.mkdtemp(prefix="brainplug_app_"))
         self.uploads = self.dir / "uploads"
         self.uploads.mkdir()
         self.result: str | None = None
@@ -60,7 +60,7 @@ def build(state: State, options: dict) -> dict:
     from .pipeline import local_tz
     payload = analysis.analyse(
         items, tz=local_tz(), n_topics=int(options["topics"]) if options.get("topics") else None,
-        private=bool(options.get("private")), title=str(options.get("title") or "My Brainprint"),
+        private=bool(options.get("private")), title=str(options.get("title") or "My Brainplug"),
     )
     state.result = render_html(payload, lang=str(options.get("lang") or "en"))
     return {
@@ -72,7 +72,7 @@ def build(state: State, options: dict) -> dict:
 
 def make_handler(state: State):
     class Handler(BaseHTTPRequestHandler):
-        server_version = "Brainprint"
+        server_version = "Brainplug"
 
         def log_message(self, *args) -> None:  # keep the terminal quiet
             pass
@@ -90,7 +90,7 @@ def make_handler(state: State):
 
         def _allowed(self, query: dict) -> bool:
             host = (self.headers.get("Host") or "").split(":")[0]
-            token = self.headers.get("X-Brainprint-Token") or (query.get("t") or [""])[0]
+            token = self.headers.get("X-Brainplug-Token") or (query.get("t") or [""])[0]
             return host in ("127.0.0.1", "localhost") and secrets.compare_digest(token, state.token)
 
         def _route(self):
@@ -106,7 +106,7 @@ def make_handler(state: State):
             if path == "/":
                 self._send(200, PAGE.read_text(encoding="utf-8").replace("__TOKEN__", state.token), "text/html")
             elif path == "/result" and state.result:
-                extra = {"Content-Disposition": 'attachment; filename="brainprint.html"'} if "download" in query else None
+                extra = {"Content-Disposition": 'attachment; filename="brainplug.html"'} if "download" in query else None
                 self._send(200, state.result, "text/html", extra)
             elif path is not None:
                 self._send(404, json.dumps({"ok": False, "error": "Not found"}))
@@ -170,7 +170,7 @@ def serve(port: int = 8765, open_browser: bool = True) -> int:
     atexit.register(state.close)  # also clean up when the terminal window is simply closed
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     url = f"http://127.0.0.1:{server.server_address[1]}/?t={state.token}"
-    print(f"Brainprint is running on this computer only:\n\n  {url}\n\nPress Ctrl+C to stop.")
+    print(f"Brainplug is running on this computer only:\n\n  {url}\n\nPress Ctrl+C to stop.")
     if open_browser:
         webbrowser.open(url)
     try:

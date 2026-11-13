@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "brainprint"
+name = "brainplug"
 version = "0.3.0"
 description = "A second brain for you and your AI assistants: a 3D map of everything you write and a memory they plug into. 100% local."
 readme = "README.md"
@@ -17,10 +17,10 @@ agent = ["mcp>=1.2"]
 dev = ["pytest", "mcp>=1.2"]
 
 [project.scripts]
-brainprint = "brainprint.__main__:main"
+brainplug = "brainplug.__main__:main"
 
 [tool.setuptools]
-packages = ["brainprint"]
+packages = ["brainplug"]
 
 [tool.setuptools.package-data]
-brainprint = ["templates/*.html", "vendor/*"]
+brainplug = ["templates/*.html", "vendor/*"]

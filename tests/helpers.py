@@ -3,7 +3,7 @@
 import io
 import zipfile
 
-from brainprint import demo
+from brainplug import demo
 
 
 def tiny_pdf(text: str, title: str = "My thesis draft") -> bytes:

@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Brainprint capture",
+  "name": "Brainplug capture",
   "version": "0.3.0",
-  "description": "Keeps a copy of what you type into ChatGPT, Claude, Gemini, Copilot and Perplexity on this computer, so Brainprint can map it. Nothing is sent anywhere.",
+  "description": "Keeps a copy of what you type into ChatGPT, Claude, Gemini, Copilot and Perplexity on this computer, so Brainplug can map it. Nothing is sent anywhere.",
   "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
   "permissions": ["storage", "unlimitedStorage"],
-  "action": { "default_popup": "popup.html", "default_title": "Brainprint" },
+  "action": { "default_popup": "popup.html", "default_title": "Brainplug" },
   "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
@@ -18,7 +18,8 @@
     },
     {
       "matches": [
-        "https://juanmariarodriguez2-png.github.io/brainprint/app/*",
+        "https://brainplug.app/app/*", "https://www.brainplug.app/app/*",
+        "https://juanmariarodriguez2-png.github.io/brainplug/app/*",
         "http://127.0.0.1/app/*", "http://localhost/app/*"
       ],
       "js": ["bridge.js"],

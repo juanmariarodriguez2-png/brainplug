@@ -1,4 +1,4 @@
-"""Synthetic history so anyone can try Brainprint without exporting anything.
+"""Synthetic history so anyone can try Brainplug without exporting anything.
 
 Chats, notes, documents and messages are generated from templates: none of it is real.
 """

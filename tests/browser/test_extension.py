@@ -118,13 +118,13 @@ def test_extension_keeps_only_what_you_send(site, chrome, tmp_path):
         app.wait_for_selector("#list li")
         app.click("#build")
         app.wait_for_selector("#result.on", timeout=60_000)
-        numbers = app.evaluate("window.__brainprint.payload.numbers")
+        numbers = app.evaluate("window.__brainplug.payload.numbers")
         assert numbers["items"] == 4 and {s["id"] for s in numbers["sources"]} == {"chatgpt", "claude", "gemini", "perplexity"}
 
         with popup.expect_download() as download:
             popup.click("#save")
         saved = json.loads(Path(download.value.path()).read_text(encoding="utf-8"))
-        assert saved["format"] == "brainprint-capture" and len(saved["items"]) == 5
+        assert saved["format"] == "brainplug-capture" and len(saved["items"]) == 5
         popup.click("#clear")
         popup.click("#clear")
         popup.wait_for_timeout(300)

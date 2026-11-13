@@ -1,4 +1,4 @@
-/* Brainprint site: true black, one typeface, and the spectrum gradient kept for whole sentences. */
+/* Brainplug site: true black, one typeface, and the spectrum gradient kept for whole sentences. */
 @font-face { font-family: "Inter"; src: url("fonts/inter-latin.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
 :root {
   --black: #000; --ink: #f4f4f6; --soft: #c9c9d1; --mute: #8d8d96; --line: #232328;
@@ -8,7 +8,7 @@
 * { box-sizing: border-box; }
 html { background: var(--black); color: var(--ink); font: 400 17px/1.55 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
-body { margin: 0; background: var(--black); }
+body { margin: 0; background: var(--black); overflow-x: clip; }
 a { color: inherit; }
 img { max-width: 100%; display: block; }
 ::selection { background: #a77bff; color: #000; }
@@ -18,7 +18,7 @@ img { max-width: 100%; display: block; }
 .spectrum { background: var(--spectrum); -webkit-background-clip: text; background-clip: text; color: transparent;
   width: fit-content; max-width: 100%; }
 /* A statement: one whole sentence in the gradient, never a single accented word. */
-.say { font-weight: 600; font-size: clamp(30px, 4.6vw, 58px); line-height: 1.08; letter-spacing: -0.03em; margin: 0; text-wrap: balance; }
+.say { font-weight: 650; font-size: clamp(34px, 5.4vw, 76px); line-height: 1.04; letter-spacing: -0.035em; margin: 0; text-wrap: balance; }
 /* The gradient runs across each line of the sentence, whatever its length. */
 .say > span { background: var(--spectrum); -webkit-background-clip: text; background-clip: text; color: transparent;
   -webkit-box-decoration-break: clone; box-decoration-break: clone; padding-bottom: 0.14em; }
@@ -45,7 +45,7 @@ p { margin: 0 0 14px; }
 
 /* Rows separated by hairlines instead of cards. */
 .rows { border-top: 1px solid var(--line); margin: 0; padding: 0; list-style: none; }
-.rows > * { border-bottom: 1px solid var(--line); padding: 18px 0; display: grid; grid-template-columns: minmax(150px, 240px) 1fr; gap: 8px 32px; align-items: baseline; }
+.rows > * { border-bottom: 1px solid var(--line); padding: 22px 0; display: grid; grid-template-columns: minmax(150px, 240px) 1fr; gap: 8px 32px; align-items: baseline; }
 .rows > * > * { min-width: 0; }
 .rows .name { font-weight: 500; }
 .rows .what { color: var(--soft); }
@@ -55,7 +55,7 @@ code { background: #141417; padding: 2px 6px; border-radius: 5px; }
 pre { max-width: 100%; background: #0d0d10; border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; overflow: auto; margin: 14px 0; color: var(--soft); line-height: 1.6; }
 pre code { background: none; padding: 0; }
 
-section { padding: clamp(64px, 9vw, 120px) 0 0; }
+section { padding: clamp(88px, 12vw, 168px) 0 0; }
 footer.end { margin-top: clamp(64px, 9vw, 120px); border-top: 1px solid var(--line); padding: 28px 0 44px; color: var(--mute); font-size: 14px;
   display: flex; flex-wrap: wrap; gap: 8px 24px; }
 footer.end a { color: var(--soft); }

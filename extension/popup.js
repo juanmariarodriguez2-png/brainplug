@@ -1,15 +1,15 @@
-const APP = 'https://juanmariarodriguez2-png.github.io/brainprint/app/';
+const APP = 'https://brainplug.app/app/';
 const NAMES = { chatgpt: 'ChatGPT', claude: 'Claude', gemini: 'Gemini', copilot: 'Copilot', perplexity: 'Perplexity' };
 const es = (navigator.language || 'en').toLowerCase().startsWith('es');
 const T = es ? {
   say: n => (n === 1 ? '1 mensaje guardado' : `${n.toLocaleString('es')} mensajes guardados`),
   sub: 'Lo que tú escribes a la IA, guardado solo en este navegador.', none: 'Escribe en ChatGPT, Claude o Gemini y aparecerá aquí.',
-  on: 'Guardar lo que escribo', open: 'Crear mi Brainprint', save: 'Guardar archivo', clear: 'Borrar todo lo guardado',
+  on: 'Guardar lo que escribo', open: 'Crear mi Brainplug', save: 'Guardar archivo', clear: 'Borrar todo lo guardado',
   sure: 'Pulsa otra vez para borrarlo todo', foot: 'No se envía nada a ningún sitio. Las respuestas de la IA no se guardan.',
 } : {
   say: n => (n === 1 ? '1 message saved' : `${n.toLocaleString('en')} messages saved`),
   sub: 'What you type to an AI, kept in this browser only.', none: 'Type in ChatGPT, Claude or Gemini and it will show up here.',
-  on: 'Save what I type', open: 'Make my Brainprint', save: 'Save as a file', clear: 'Delete everything saved',
+  on: 'Save what I type', open: 'Make my Brainplug', save: 'Save as a file', clear: 'Delete everything saved',
   sure: 'Press again to delete it all', foot: 'Nothing is sent anywhere. The AI’s answers are not saved.',
 };
 const $ = id => document.getElementById(id);
@@ -41,10 +41,10 @@ async function draw() {
 $('on').onchange = () => chrome.storage.local.set({ paused: !$('on').checked });
 $('open').onclick = () => chrome.tabs.create({ url: APP + (es ? '?lang=es' : '') });
 $('save').onclick = async () => {
-  const data = { format: 'brainprint-capture', version: 1, exported: new Date().toISOString(), items: await items() };
+  const data = { format: 'brainplug-capture', version: 1, exported: new Date().toISOString(), items: await items() };
   const link = document.createElement('a');
   link.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
-  link.download = 'brainprint-capture.json';
+  link.download = 'brainplug-capture.json';
   link.click();
 };
 $('clear').onclick = async () => {

@@ -1,8 +1,8 @@
 """Write your record back as Markdown notes that Obsidian can open.
 
-Creates a ``Brainprint/`` folder with:
+Creates a ``Brainplug/`` folder with:
 
-* ``Brainprint.md``        an index of your topics
+* ``Brainplug.md``        an index of your topics
 * ``Topics/<topic>.md``    one map-of-content per topic, grouped by month
 * ``Items/<source>/…md``   one note per chat or email, with what you wrote
                            and ``[[links]]`` to related items
@@ -33,7 +33,7 @@ def _slug(name: str) -> str:
 
 
 def export_vault(items: list[Item], payload: dict, out_dir: str | Path) -> int:
-    base = Path(out_dir) / "Brainprint"
+    base = Path(out_dir) / "Brainplug"
     topics, meta = payload["topics"], payload["items"]
     used: set[str] = set()
     names: dict[int, str] = {}
@@ -64,7 +64,7 @@ def export_vault(items: list[Item], payload: dict, out_dir: str | Path) -> int:
         text = item.text[:MAX_TEXT] + (" […]" if len(item.text) > MAX_TEXT else "")
         lines = [
             "---", f"date: {meta[i]['d']}", f"source: {item.source}", f"type: {item.kind}",
-            f'topic: "{topic["name"]}"', f"tags: [brainprint, brainprint/{_slug(topic['name'])}]",
+            f'topic: "{topic["name"]}"', f"tags: [brainplug, brainplug/{_slug(topic['name'])}]",
             "---", "", f"# {item.title}", "", f"Topic: [[{safe_name(topic['name'])}]]", "",
             "## What I wrote", "", text, "",
         ]
@@ -79,7 +79,7 @@ def export_vault(items: list[Item], payload: dict, out_dir: str | Path) -> int:
         for i, m in enumerate(meta):
             if m["k"] == topic["id"]:
                 by_month["No date" if m["u"] else m["d"][:7]].append(i)
-        lines = ["---", "type: topic", f"items: {topic['count']}", "tags: [brainprint]", "---", "",
+        lines = ["---", "type: topic", f"items: {topic['count']}", "tags: [brainplug]", "---", "",
                  f"# {topic['name']}", "", f"Key terms: {', '.join(topic['terms'])}", ""]
         for month in sorted(by_month, reverse=True):
             lines += [f"## {month}", ""]
@@ -90,10 +90,10 @@ def export_vault(items: list[Item], payload: dict, out_dir: str | Path) -> int:
         written += 1
 
     numbers = payload["numbers"]
-    index = ["# Brainprint", "", f"{numbers['items']} items · {numbers['first']} → {numbers['last']}", "",
+    index = ["# Brainplug", "", f"{numbers['items']} items · {numbers['first']} → {numbers['last']}", "",
              "## Topics", ""]
     index += [f"- [[{safe_name(t['name'])}]] · {t['count']} items ({round(t['share'] * 100)}%)" for t in topics]
-    (base / "Brainprint.md").write_text("\n".join(index) + "\n", encoding="utf-8")
+    (base / "Brainplug.md").write_text("\n".join(index) + "\n", encoding="utf-8")
     return written + 1
 
 

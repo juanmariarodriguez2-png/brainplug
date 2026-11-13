@@ -4,13 +4,13 @@ Supported inputs (files, folders or ZIPs, in any mix):
 
 * ChatGPT and Claude exports  -> ``conversations.json`` (or the export ZIP)
 * Gemini via Google Takeout   -> ``MyActivity.json`` (or the Takeout ZIP)
-* Live capture                -> the JSON saved by the Brainprint browser extension
+* Live capture                -> the JSON saved by the Brainplug browser extension
 * Obsidian vaults / any folder of Markdown or text notes
 * Notion exports ("Markdown & CSV"); see ``notion_api`` for real creation dates
 * Gmail via Google Takeout    -> ``.mbox`` (only the mail *you* sent)
 * WhatsApp chat exports       -> ``.txt`` or the ZIP (only the messages *you* sent)
 * Word and PDF documents      -> ``.docx``, ``.pdf``
-* Memories saved by your AI   -> the notes in ``Brainprint/Memory`` (see ``memory``)
+* Memories saved by your AI   -> the notes in ``Brainplug/Memory`` (see ``memory``)
 
 Every loader returns ``Item`` objects that hold **only your own words**:
 your side of a chat, your notes, the text you typed in an email (quoted
@@ -274,10 +274,10 @@ def _meta_date(meta: dict) -> datetime | None:
     return None
 
 
-# Notes Brainprint wrote itself (--vault) are a copy of things already read, so they are
+# Notes Brainplug wrote itself (--vault) are a copy of things already read, so they are
 # skipped; the memory folder and "About me" are read as the source "memory".
-_GENERATED = re.compile(r"(?:^|/)Brainprint/(?:Items/|Topics/|Brainprint\.md$)")
-_MEMORY = re.compile(r"(?:^|/)Brainprint/(?:Memory/|About me\.md$)")
+_GENERATED = re.compile(r"(?:^|/)Brainplug/(?:Items/|Topics/|Brainplug\.md$)")
+_MEMORY = re.compile(r"(?:^|/)Brainplug/(?:Memory/|About me\.md$)")
 
 
 def parse_note(path: Path, rel: Path, source: str) -> Item | None:
@@ -285,7 +285,7 @@ def parse_note(path: Path, rel: Path, source: str) -> Item | None:
     if source == "memory":
         if str(meta.get("archived", "")).lower() == "true":
             return None  # a memory you (or an assistant) put away
-        if "brainprint: fill this in" in body and not re.search(r"(?m)^- [^:\n]+:[ \t]*\S", body):
+        if "brainplug: fill this in" in body and not re.search(r"(?m)^- [^:\n]+:[ \t]*\S", body):
             return None  # "About me" is still the empty template
     text, links, tags = clean_markdown(body)
     if len(text.split()) < 3:
@@ -541,7 +541,7 @@ def parse_gemini_html(markup: str) -> list[Item]:
 
 
 # --------------------------------------------------------------------------- #
-# live capture (the Brainprint browser extension)
+# live capture (the Brainplug browser extension)
 # --------------------------------------------------------------------------- #
 def parse_capture(data: dict) -> list[Item]:
     groups: dict[tuple[str, str], list] = {}
@@ -567,8 +567,8 @@ def parse_capture(data: dict) -> list[Item]:
 
 
 def parse_json(data: Any) -> list[Item]:
-    """Any JSON Brainprint understands: ChatGPT, Claude, Gemini or the extension's capture file."""
-    if isinstance(data, dict) and data.get("format") == "brainprint-capture":
+    """Any JSON Brainplug understands: ChatGPT, Claude, Gemini or the extension's capture file."""
+    if isinstance(data, dict) and data.get("format") == "brainplug-capture":
         return parse_capture(data)
     if isinstance(data, list) and data:
         sample = next((c for c in data if isinstance(c, dict)), {})
@@ -579,7 +579,7 @@ def parse_json(data: Any) -> list[Item]:
         if any(_is_gemini(e) for e in data[:50]):
             return parse_gemini(data)
     raise ValueError("Unknown JSON: expected conversations.json from ChatGPT or Claude, "
-                     "MyActivity.json from Gemini (Google Takeout) or a Brainprint capture file.")
+                     "MyActivity.json from Gemini (Google Takeout) or a Brainplug capture file.")
 
 
 # --------------------------------------------------------------------------- #
@@ -745,7 +745,7 @@ def _wanted_json(rel: str) -> bool:
     """Inside folders and ZIPs only JSON files that are clearly exports are read."""
     low = rel.lower()
     name = low.rsplit("/", 1)[-1]
-    return (name == "conversations.json" or "brainprint" in name
+    return (name == "conversations.json" or "brainplug" in name
             or (("gemini" in low or "bard" in low) and "activ" in name))
 
 
@@ -770,7 +770,7 @@ class _Loader:
     def zip(self, path: Path) -> list[Item]:
         with zipfile.ZipFile(path) as zf:
             names = zf.namelist()
-            tmp = tempfile.TemporaryDirectory(prefix="brainprint_")
+            tmp = tempfile.TemporaryDirectory(prefix="brainplug_")
             _TEMP.append(tmp)
             root = Path(tmp.name)
             for info in zf.infolist():

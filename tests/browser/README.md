@@ -5,7 +5,7 @@ These drive the real pages in Chrome, so they are not part of the normal test ru
 
 ```bash
 pip install playwright pytest
-export BRAINPRINT_CHROME=/path/to/chrome      # Chrome for Testing or Chromium
+export BRAINPLUG_CHROME=/path/to/chrome      # Chrome for Testing or Chromium
 python -m pytest tests/browser -q
 ```
 

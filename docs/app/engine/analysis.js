@@ -1,5 +1,5 @@
 // Turn items into topics, connections, two 3D layouts and summary numbers.
-// A port of brainprint/analysis.py with no dependencies: TF-IDF, a randomized
+// A port of brainplug/analysis.py with no dependencies: TF-IDF, a randomized
 // truncated SVD (LSA) and k-means are implemented here so the whole analysis
 // runs inside the browser tab.
 import * as brain from './brain.js';
@@ -525,11 +525,11 @@ function localShape(Z, d, idx) {
 // ------------------------------------------------------------ main entry
 /**
  * items: from sources.load(). options: { topics, private, rename: {index: name}, title, seed, progress }.
- * Returns the same payload as brainprint.analysis.analyse(), ready for the viewer.
+ * Returns the same payload as brainplug.analysis.analyse(), ready for the viewer.
  */
 export function analyse(items, options = {}) {
-  const { topics: nTopics = null, private: isPrivate = false, rename = {}, title = 'My Brainprint', seed = 0, progress = () => {} } = options;
-  if (items.length < 3) throw new Error('Need at least 3 items (chats, notes, documents or messages) to build a brainprint.');
+  const { topics: nTopics = null, private: isPrivate = false, rename = {}, title = 'My Brainplug', seed = 0, progress = () => {} } = options;
+  if (items.length < 3) throw new Error('Need at least 3 items (chats, notes, documents or messages) to build a brainplug.');
   const rng = brain.makeRng(seed), n = items.length;
   let dated = items.map(it => it.dated);
   if (!dated.some(Boolean)) dated = dated.map(() => true);  // nothing carries a real date: fall back to file dates

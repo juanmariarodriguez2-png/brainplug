@@ -303,12 +303,12 @@ def review(items: list[Item], labels: np.ndarray, dated: np.ndarray, k: int,
 # main entry
 # --------------------------------------------------------------------------- #
 def analyse(items: list[Item], tz: tzinfo | None = None, n_topics: int | None = None, private: bool = False,
-            rename: dict[int, str] | None = None, title: str = "My Brainprint",
+            rename: dict[int, str] | None = None, title: str = "My Brainplug",
             seed: int = 0, keep: dict | None = None) -> dict:
     """Build everything the viewer needs. Pass a dict as ``keep`` to also get the
     fitted model back (vectorizer, SVD, matrices, labels), e.g. for search."""
     if len(items) < 3:
-        raise ValueError("Need at least 3 items (chats, notes, documents or messages) to build a brainprint.")
+        raise ValueError("Need at least 3 items (chats, notes, documents or messages) to build a brainplug.")
     rng = np.random.default_rng(seed)
     n = len(items)
     dated = np.array([it.dated for it in items])

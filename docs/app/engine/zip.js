@@ -1,5 +1,5 @@
 // Read ZIP files without loading them whole: the central directory tells where
-// each entry is, so only the entries Brainprint needs are ever read (the photos
+// each entry is, so only the entries Brainplug needs are ever read (the photos
 // and videos in an export are skipped). Works on a File/Blob, in the browser and in Node.
 import { Inflate } from '../vendor/fflate.js';
 

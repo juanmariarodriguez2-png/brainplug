@@ -37,8 +37,8 @@ def test_web_app_matches_python_and_works_offline(site, chrome, tmp_path):
         assert page.locator("#list li").count() == len(loose) + len(folders)
         page.click("#build")
         page.wait_for_selector("#result.on", timeout=120_000)
-        web = page.evaluate("window.__brainprint.payload")
-        assert page.evaluate("window.__brainprint.notes") == []
+        web = page.evaluate("window.__brainplug.payload")
+        assert page.evaluate("window.__brainplug.notes") == []
         viewer = next(f for f in page.frames if f.url.startswith("blob:"))
         viewer.wait_for_function("window.__bp && window.__bp.ready", timeout=30_000)
         html = page.evaluate("fetch(document.getElementById('download').href).then(r => r.text())")
@@ -52,7 +52,7 @@ def test_web_app_matches_python_and_works_offline(site, chrome, tmp_path):
     assert '<html lang="es">' in html and "__DATA__" not in html and "ASSISTANTWORD" not in html and "OTHERWORD" not in html
 
     env = {**os.environ, "TZ": "Europe/Madrid", "PYTHONPATH": str(ROOT)}
-    subprocess.run([sys.executable, "-m", "brainprint", "build", *loose, *folders, "-o", str(tmp_path / "py.html"),
+    subprocess.run([sys.executable, "-m", "brainplug", "build", *loose, *folders, "-o", str(tmp_path / "py.html"),
                     "--json", str(tmp_path / "py.json")], check=True, env=env, capture_output=True)
     py = json.loads((tmp_path / "py.json").read_text(encoding="utf-8"))
     assert web["numbers"] == py["numbers"]

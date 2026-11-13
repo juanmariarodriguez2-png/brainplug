@@ -8,11 +8,11 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from brainprint import demo, sync
-from brainprint.__main__ import main
-from brainprint.agent import Brain
-from brainprint.export import redact
-from brainprint.pipeline import Options
+from brainplug import demo, sync
+from brainplug.__main__ import main
+from brainplug.agent import Brain
+from brainplug.export import redact
+from brainplug.pipeline import Options
 from helpers import notes_folder
 
 TZ = ZoneInfo("Europe/Madrid")
@@ -50,7 +50,7 @@ def test_mcp_server_round_trip(tmp_path):
 
     async def talk():
         params = StdioServerParameters(
-            command=sys.executable, args=["-m", "brainprint", "mcp", "--brain", str(vault), "--topics", "6"],
+            command=sys.executable, args=["-m", "brainplug", "mcp", "--brain", str(vault), "--topics", "6"],
             env={**os.environ, "PYTHONPATH": str(ROOT)})
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as session:
@@ -68,7 +68,7 @@ def test_mcp_server_round_trip(tmp_path):
     tools, found, saved, again, briefing = asyncio.run(asyncio.wait_for(talk(), timeout=90))
     assert tools == ["context", "recall", "remember", "read", "forget", "overview", "topic", "timeline", "review"]
     assert found.startswith("#") and "· Notes ·" in found
-    note = vault / "Brainprint" / "Memory"
+    note = vault / "Brainplug" / "Memory"
     [path] = list(note.glob("*Capstone topic.md"))
     written = path.read_text(encoding="utf-8")
     assert "kind: project" in written and "saved_by: Test client" in written and "pinned: true" in written
@@ -81,13 +81,13 @@ def test_sync_config_and_watch(tmp_path, capsys, monkeypatch):
     monkeypatch.chdir(tmp_path)
     assert main(["sync", "--init", "vault", "-o", "out/brain.html", "--lang", "es", "--topics", "5",
                  "--rename", "1=Main", "--me", "Juan"]) == 0
-    saved = json.loads((tmp_path / "brainprint.json").read_text())
+    saved = json.loads((tmp_path / "brainplug.json").read_text())
     assert saved["inputs"] == [str((tmp_path / "vault").resolve())] and saved["rename"] == {"1": "Main"}
     assert main(["sync"]) == 0
     html = (tmp_path / "out" / "brain.html").read_text(encoding="utf-8")
     assert '<html lang="es">' in html and '"name":"Main"' in html
 
-    o = sync.read_config(tmp_path / "brainprint.json")
+    o = sync.read_config(tmp_path / "brainplug.json")
     assert o.rename == {0: "Main"} and o.me == ["Juan"] and Path(o.out).is_absolute()
     before = sync.fingerprint(o.inputs)
     assert before == sync.fingerprint(o.inputs)
@@ -108,7 +108,7 @@ def test_sync_config_and_watch(tmp_path, capsys, monkeypatch):
     # cycle 1 builds; an edit lands; the change must be seen twice (stable) before the rebuild
     real_sleep = time.sleep
     monkeypatch.setattr(time, "sleep", lambda s: (say(None), real_sleep(0))[1])
-    assert sync.watch(tmp_path / "brainprint.json", every=0, say=lambda _: None, cycles=5, build=fake_build) == 2
+    assert sync.watch(tmp_path / "brainplug.json", every=0, say=lambda _: None, cycles=5, build=fake_build) == 2
     assert builds == [41, 42]
 
     (tmp_path / "bad.json").write_text('{"inputz": []}')
@@ -140,4 +140,4 @@ def test_dataset_is_redacted_and_json_dump(tmp_path, capsys):
 def test_build_needs_inputs(capsys):
     with pytest.raises(SystemExit):
         main(["build"])
-    assert Options().out == "brainprint.html"
+    assert Options().out == "brainplug.html"

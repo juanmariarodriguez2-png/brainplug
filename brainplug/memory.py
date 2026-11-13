@@ -1,7 +1,7 @@
 """A memory your AI can read and write: plain Markdown inside your vault.
 
-    <vault>/Brainprint/About me.md     what every assistant should know about you (you write it)
-    <vault>/Brainprint/Memory/*.md     one note per thing an assistant was asked to remember
+    <vault>/Brainplug/About me.md     what every assistant should know about you (you write it)
+    <vault>/Brainplug/Memory/*.md     one note per thing an assistant was asked to remember
 
 Every memory is an ordinary note: open it in Obsidian, edit it, move it, delete
 it. Nothing is hidden and nothing leaves the folder. An assistant can add
@@ -14,12 +14,12 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-FOLDER = "Brainprint"
+FOLDER = "Brainplug"
 MEMORY = "Memory"
 PROFILE = "About me.md"
 KINDS = ("note", "fact", "preference", "decision", "project")
 MAX_TEXT = 8000
-TEMPLATE_MARK = "brainprint: fill this in"
+TEMPLATE_MARK = "brainplug: fill this in"
 
 _TEMPLATES = {
     "en": """---
@@ -54,7 +54,7 @@ def brain_dir(vault: str | Path) -> Path:
 
 
 def init(vault: str | Path, lang: str = "en") -> Path:
-    """Create the Brainprint folder in a vault (or any folder). Existing notes are left alone."""
+    """Create the Brainplug folder in a vault (or any folder). Existing notes are left alone."""
     base = brain_dir(vault)
     (base / MEMORY).mkdir(parents=True, exist_ok=True)
     profile = base / PROFILE
@@ -106,7 +106,7 @@ def _tag(tag: str) -> str:
 
 def remember(vault: str | Path, text: str, title: str = "", kind: str = "note", tags: list[str] | tuple = (),
              source: str = "", pin: bool = False, when: datetime | None = None) -> Path:
-    """Save one memory as a note in ``Brainprint/Memory`` and return its path."""
+    """Save one memory as a note in ``Brainplug/Memory`` and return its path."""
     text = " ".join(str(text).split()) if "\n" not in str(text).strip() else str(text).strip()
     if not text:
         raise ValueError("There is nothing to remember: the text is empty.")
@@ -121,7 +121,7 @@ def remember(vault: str | Path, text: str, title: str = "", kind: str = "note", 
     while path.exists():  # never overwrite an existing note
         path = folder / f"{stem} {n}.md"
         n += 1
-    labels = ["brainprint/memory", f"brainprint/{kind}", *[t for t in map(_tag, tags) if t]]
+    labels = ["brainplug/memory", f"brainplug/{kind}", *[t for t in map(_tag, tags) if t]]
     head = ["---", f"created: {when.isoformat(timespec='seconds')}", f"kind: {kind}"]
     if _safe(source):
         head.append(f"saved_by: {_safe(source, 40)}")

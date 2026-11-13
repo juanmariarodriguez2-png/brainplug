@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Make your Brainprint</title>
+<title>Make your Brainplug</title>
 <meta name="description" content="Drop your AI chats, notes, mail and messages and get a 3D map of what you write about. Everything runs in this tab: nothing is uploaded.">
 <meta name="referrer" content="no-referrer">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop stop-color='%236f8cff'/%3E%3Cstop offset='.5' stop-color='%23ff6ad5'/%3E%3Cstop offset='1' stop-color='%23ffb62e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='%23000'/%3E%3Ccircle cx='16' cy='16' r='7' fill='url(%23g)'/%3E%3C/svg%3E">
@@ -58,9 +58,9 @@
 <body>
 <div class="wrap">
   <header class="top">
-    <a class="mark" href="../">Brainprint</a>
+    <a class="mark" href="../">Brainplug</a>
     <a href="../#how" data-i="navHow"></a>
-    <a href="https://github.com/juanmariarodriguez2-png/brainprint">GitHub</a>
+    <a href="https://github.com/juanmariarodriguez2-png/brainplug">GitHub</a>
     <button class="lang" id="lang" type="button"></button>
   </header>
 
@@ -123,7 +123,7 @@
 
   <footer class="end">
     <span data-i="foot"></span>
-    <a href="https://github.com/juanmariarodriguez2-png/brainprint" data-i="footCode"></a>
+    <a href="https://github.com/juanmariarodriguez2-png/brainplug" data-i="footCode"></a>
   </footer>
 </div>
 
@@ -131,9 +131,9 @@
   <div class="bar2">
     <button class="link" id="back" type="button" data-i="back"></button>
     <span id="resNote"></span>
-    <a class="btn" id="download" download="brainprint.html" data-i="download"></a>
+    <a class="btn" id="download" download="brainplug.html" data-i="download"></a>
   </div>
-  <iframe id="frame" title="Brainprint"></iframe>
+  <iframe id="frame" title="Brainplug"></iframe>
 </div>
 
 <script type="module">
@@ -146,17 +146,17 @@ const TXT = {
     dropT: 'Drop files or folders here',
     dropP: 'Use them exactly as each app gives them to you: the .zip from ChatGPT, Claude, Notion or Google Takeout, your Obsidian folder, a Gmail .mbox, WhatsApp chats, Word and PDF files.',
     pickFiles: 'Choose files', pickFolder: 'Choose a folder',
-    extText: n => `The Brainprint extension has ${n} messages saved in this browser.`, extAdd: 'Add them', extName: 'Live capture (extension)',
+    extText: n => `The Brainplug extension has ${n} messages saved in this browser.`, extAdd: 'Add them', extName: 'Live capture (extension)',
     optsT: 'Options', oTitle: 'Title', oLang: 'Language of the result', oMe: 'Who you are',
-    oMeHint: 'Your email (for Gmail) and your name as it appears in WhatsApp, separated by commas. Leave it empty and Brainprint works it out when it can.',
+    oMeHint: 'Your email (for Gmail) and your name as it appears in WhatsApp, separated by commas. Leave it empty and Brainplug works it out when it can.',
     oTopics: 'Topics', auto: 'Automatic',
     oPrivate: 'Private mode: leave titles and text out, so the result is safe to share.',
     oPdf: 'Also read the PDFs inside folders. They are skipped by default because they are usually other people’s writing.',
-    build: 'Make my Brainprint', example: 'See an example first',
+    build: 'Make my Brainplug', example: 'See an example first',
     files: n => `${n} files`, remove: 'Remove',
     stage: { file: 'Reading', words: 'Counting words', directions: 'Working out what you write about', topics: 'Grouping into topics', connections: 'Looking for connections', layout: 'Drawing the brain', render: 'Putting the page together' },
     errNeed: 'There is not enough to draw yet: at least 3 chats, notes, documents or message days are needed. Add more files.',
-    errJson: 'That JSON file is not an export Brainprint knows. Use conversations.json (ChatGPT or Claude), MyActivity.json (Gemini) or the extension’s capture file.',
+    errJson: 'That JSON file is not an export Brainplug knows. Use conversations.json (ChatGPT or Claude), MyActivity.json (Gemini) or the extension’s capture file.',
     errAny: m => `That did not work: ${m}`,
     noteWa: who => `WhatsApp chats were skipped because it is not clear which sender is you. Type your name under Options › Who you are (seen in the chats: ${who}).`,
     notePdf: name => `The PDF ${name} could not be read.`,
@@ -172,7 +172,7 @@ const TXT = {
     eWhatsapp: 'Open a chat › More › Export chat › Without media. Drop the .txt or the .zip. <small>Only your own messages are kept.</small>',
     eDocsT: 'Word and PDF', eDocs: 'Drop .docx and .pdf files. <small>These are read whole, so add the ones you wrote.</small>',
     eLiveT: 'Live capture', eLive: 'The browser extension saves what you type into ChatGPT, Claude and Gemini as you go. <small>It appears here on its own when the extension is installed.</small>',
-    foot: 'Brainprint is open source (MIT). No account, no server, no tracking.', footCode: 'Read the code',
+    foot: 'Brainplug is open source (MIT). No account, no server, no tracking.', footCode: 'Read the code',
   },
   es: {
     lang: 'EN / <b>ES</b>', navHow: 'Cómo funciona',
@@ -182,17 +182,17 @@ const TXT = {
     dropT: 'Suelta aquí archivos o carpetas',
     dropP: 'Sirven tal cual te los da cada app: el .zip de ChatGPT, Claude, Notion o Google Takeout, tu carpeta de Obsidian, un .mbox de Gmail, chats de WhatsApp, archivos Word y PDF.',
     pickFiles: 'Elegir archivos', pickFolder: 'Elegir una carpeta',
-    extText: n => `La extensión de Brainprint tiene ${n} mensajes guardados en este navegador.`, extAdd: 'Añadirlos', extName: 'Captura en vivo (extensión)',
+    extText: n => `La extensión de Brainplug tiene ${n} mensajes guardados en este navegador.`, extAdd: 'Añadirlos', extName: 'Captura en vivo (extensión)',
     optsT: 'Opciones', oTitle: 'Título', oLang: 'Idioma del resultado', oMe: 'Quién eres',
-    oMeHint: 'Tu correo (para Gmail) y tu nombre tal como sale en WhatsApp, separados por comas. Si lo dejas vacío, Brainprint lo deduce cuando puede.',
+    oMeHint: 'Tu correo (para Gmail) y tu nombre tal como sale en WhatsApp, separados por comas. Si lo dejas vacío, Brainplug lo deduce cuando puede.',
     oTopics: 'Temas', auto: 'Automático',
     oPrivate: 'Modo privado: deja fuera los títulos y el texto, para poder compartir el resultado.',
     oPdf: 'Leer también los PDF que haya dentro de las carpetas. Por defecto se saltan, porque suelen ser textos de otras personas.',
-    build: 'Crear mi Brainprint', example: 'Ver antes un ejemplo',
+    build: 'Crear mi Brainplug', example: 'Ver antes un ejemplo',
     files: n => `${n} archivos`, remove: 'Quitar',
     stage: { file: 'Leyendo', words: 'Contando palabras', directions: 'Viendo de qué escribes', topics: 'Agrupando por temas', connections: 'Buscando conexiones', layout: 'Dibujando el cerebro', render: 'Montando la página' },
     errNeed: 'Todavía no hay suficiente para dibujar: hacen falta al menos 3 chats, notas, documentos o días de mensajes. Añade más archivos.',
-    errJson: 'Ese JSON no es una exportación que Brainprint conozca. Usa conversations.json (ChatGPT o Claude), MyActivity.json (Gemini) o el archivo de captura de la extensión.',
+    errJson: 'Ese JSON no es una exportación que Brainplug conozca. Usa conversations.json (ChatGPT o Claude), MyActivity.json (Gemini) o el archivo de captura de la extensión.',
     errAny: m => `No ha funcionado: ${m}`,
     noteWa: who => `Los chats de WhatsApp se han saltado porque no está claro qué remitente eres tú. Escribe tu nombre en Opciones › Quién eres (en los chats aparecen: ${who}).`,
     notePdf: name => `No se ha podido leer el PDF ${name}.`,
@@ -208,7 +208,7 @@ const TXT = {
     eWhatsapp: 'Abre un chat › Más › Exportar chat › Sin archivos. Suelta el .txt o el .zip. <small>Solo se guardan tus propios mensajes.</small>',
     eDocsT: 'Word y PDF', eDocs: 'Suelta archivos .docx y .pdf. <small>Estos se leen enteros, así que añade los que hayas escrito tú.</small>',
     eLiveT: 'Captura en vivo', eLive: 'La extensión del navegador guarda lo que escribes en ChatGPT, Claude y Gemini mientras lo usas. <small>Aparece aquí sola cuando la extensión está instalada.</small>',
-    foot: 'Brainprint es código abierto (MIT). Sin cuenta, sin servidor, sin rastreo.', footCode: 'Leer el código',
+    foot: 'Brainplug es código abierto (MIT). Sin cuenta, sin servidor, sin rastreo.', footCode: 'Leer el código',
   },
 };
 const $ = id => document.getElementById(id);
@@ -224,11 +224,11 @@ let resultUrl = null, busy = false, offlineReady = false;
 function applyLang() {
   T = TXT[lang];
   document.documentElement.lang = lang;
-  document.title = lang === 'es' ? 'Crea tu Brainprint' : 'Make your Brainprint';
+  document.title = lang === 'es' ? 'Crea tu Brainplug' : 'Make your Brainplug';
   document.querySelectorAll('[data-i]').forEach(el => { el.innerHTML = el.classList.contains('say') ? `<span>${T[el.dataset.i]}</span>` : T[el.dataset.i]; });
   $('lang').innerHTML = T.lang;
   $('oTopics').innerHTML = `<option value="">${T.auto}</option>` + Array.from({ length: 13 }, (_, i) => `<option>${i + 4}</option>`).join('');
-  if (!$('oTitle').dataset.touched) $('oTitle').value = lang === 'es' ? 'Mi Brainprint' : 'My Brainprint';
+  if (!$('oTitle').dataset.touched) $('oTitle').value = lang === 'es' ? 'Mi Brainplug' : 'My Brainplug';
   if (!$('oLang').dataset.touched) $('oLang').value = lang;
   drawList(); drawExt();
   if (offlineReady) $('offline').textContent = T.offline;
@@ -320,18 +320,18 @@ function drawExt() {
 }
 window.addEventListener('message', e => {
   const msg = e.data;
-  if (e.source !== window || !msg || msg.source !== 'brainprint-ext') return;
+  if (e.source !== window || !msg || msg.source !== 'brainplug-ext') return;
   if (msg.type === 'count') { capture = { count: msg.count }; drawExt(); }
   if (msg.type === 'items' && capture && !capture.added) {
     capture.added = true;
-    const blob = new Blob([JSON.stringify({ format: 'brainprint-capture', version: 1, items: msg.items })], { type: 'application/json' });
-    addGroup(T.extName, [{ path: 'brainprint-capture.json', blob, mtime: Date.now(), inside: false }]);
+    const blob = new Blob([JSON.stringify({ format: 'brainplug-capture', version: 1, items: msg.items })], { type: 'application/json' });
+    addGroup(T.extName, [{ path: 'brainplug-capture.json', blob, mtime: Date.now(), inside: false }]);
     drawExt();
   }
 });
-$('extAdd').onclick = () => window.postMessage({ source: 'brainprint-app', type: 'get' }, location.origin);
-window.postMessage({ source: 'brainprint-app', type: 'hello' }, location.origin);
-setTimeout(() => window.postMessage({ source: 'brainprint-app', type: 'hello' }, location.origin), 600);
+$('extAdd').onclick = () => window.postMessage({ source: 'brainplug-app', type: 'get' }, location.origin);
+window.postMessage({ source: 'brainplug-app', type: 'hello' }, location.origin);
+setTimeout(() => window.postMessage({ source: 'brainplug-app', type: 'hello' }, location.origin), 600);
 
 // ------------------------------------- everything is fetched when the page opens,
 // so building needs no connection afterwards (switch the wifi off and try)
@@ -427,7 +427,7 @@ async function onWorkerMessage(e) {
       resultUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
       finish(); showNotes(msg.notes);
       show(resultUrl, T.resNote);
-      window.__brainprint = { payload: msg.payload, notes: msg.notes };  // handy for checks and for the curious
+      window.__brainplug = { payload: msg.payload, notes: msg.notes };  // handy for checks and for the curious
     } catch (err) { fail(String((err && err.message) || err)); }
   }
 }
@@ -436,7 +436,7 @@ $('build').onclick = () => {
   busy = true; $('build').disabled = true;
   progress('file');
   getWorker().postMessage({ type: 'build', inputs: groups.flatMap(g => g.inputs), options: {
-    title: $('oTitle').value.trim() || 'My Brainprint', topics: +$('oTopics').value || null, private: $('oPrivate').checked,
+    title: $('oTitle').value.trim() || 'My Brainplug', topics: +$('oTopics').value || null, private: $('oPrivate').checked,
     pdf: $('oPdf').checked, me: $('oMe').value.split(',').map(s => s.trim()).filter(Boolean),
   } });
 };

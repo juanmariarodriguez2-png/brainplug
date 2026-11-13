@@ -26,11 +26,11 @@ def test_generated_files_are_current():
 
 
 def test_versions_agree():
-    import brainprint
+    import brainplug
     engine = (ROOT / "docs" / "app" / "engine" / "analysis.js").read_text(encoding="utf-8")
     manifest = json.loads((ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))
-    assert f"VERSION = '{brainprint.__version__}'" in engine and manifest["version"] == brainprint.__version__
-    assert f'version = "{brainprint.__version__}"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert f"VERSION = '{brainplug.__version__}'" in engine and manifest["version"] == brainplug.__version__
+    assert f'version = "{brainplug.__version__}"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
 
 def rand_index(a: list[int], b: list[int]) -> float:
@@ -47,7 +47,7 @@ def test_javascript_engine_matches_python(tmp_path):
     folder = tmp_path / "inputs"
     write_inputs(folder, 300, pdf=False)
     inputs = sorted(str(p) for p in folder.iterdir())
-    subprocess.run([sys.executable, "-m", "brainprint", "build", *inputs, "--topics", "9", "--title", "Parity",
+    subprocess.run([sys.executable, "-m", "brainplug", "build", *inputs, "--topics", "9", "--title", "Parity",
                     "-o", str(tmp_path / "py.html"), "--json", str(tmp_path / "py.json")],
                    check=True, env=ENV, capture_output=True)
     done = subprocess.run([NODE, str(ROOT / "tests" / "js" / "run_engine.mjs"), str(folder), str(tmp_path / "js.json"),
@@ -77,7 +77,7 @@ def test_javascript_engine_matches_python(tmp_path):
     assert rand_index([a for a, _ in same], [b for _, b in same]) > 0.85
 
     html = (tmp_path / "js.html").read_text(encoding="utf-8")
-    assert '<html lang="es">' in html and "__DATA__" not in html and "<title>Parity · Brainprint</title>" in html
+    assert '<html lang="es">' in html and "__DATA__" not in html and "<title>Parity · Brainplug</title>" in html
 
 
 @pytest.mark.skipif(NODE is None, reason="Node.js is not installed")

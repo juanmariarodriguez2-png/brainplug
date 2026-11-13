@@ -8,7 +8,7 @@ Setup (once): create an internal integration at notion.so/my-integrations,
 share the pages you want with it (page menu > Connections), and put its secret
 in the ``NOTION_TOKEN`` environment variable. Then::
 
-    python -m brainprint build --notion -o my_brain.html
+    python -m brainplug build --notion -o my_brain.html
 
 Requests go from your computer straight to api.notion.com and nowhere else.
 """

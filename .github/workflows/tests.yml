@@ -17,4 +17,4 @@ jobs:
       - run: pip install -r requirements.txt pytest mcp
       # Python package, plus the check that the browser engine (docs/app/engine) gives the same numbers
       - run: python -m pytest -q
-      - run: python -m brainprint demo -o out/demo.html
+      - run: python -m brainplug demo -o out/demo.html

@@ -3,11 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Brainprint: everything you write, as a 3D brain</title>
-<meta name="description" content="Brainprint turns your AI chats, notes, documents, mail and messages into a 3D brain you can explore. It runs in your browser and uploads nothing. Open source.">
-<meta property="og:title" content="Brainprint: everything you write, as a 3D brain">
+<title>Brainplug — plug your brain into any AI</title>
+<meta name="description" content="Brainplug turns your AI chats, notes, documents, mail and messages into a 3D brain you can explore. It runs in your browser and uploads nothing. Open source.">
+<meta property="og:title" content="Brainplug — plug your brain into any AI">
 <meta property="og:description" content="Your AI chats, notes, mail and messages as a 3D map of what you think about. Runs in your browser, uploads nothing.">
-<meta property="og:image" content="https://juanmariarodriguez2-png.github.io/brainprint/img/brain.jpg">
+<meta property="og:image" content="https://brainplug.app/img/brain.jpg">
+<meta property="og:url" content="https://brainplug.app/">
+<link rel="canonical" href="https://brainplug.app/">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop stop-color='%236f8cff'/%3E%3Cstop offset='.5' stop-color='%23ff6ad5'/%3E%3Cstop offset='1' stop-color='%23ffb62e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='%23000'/%3E%3Ccircle cx='16' cy='16' r='7' fill='url(%23g)'/%3E%3C/svg%3E">
@@ -29,30 +31,49 @@
     background: #0d0d10; padding: 3px 8px; border-radius: 6px; }
   .copy:hover { color: var(--ink); }
   .rows .what pre { margin: 10px 0 0; }
-  @media (max-width: 720px) { .views { grid-template-columns: 1fr; gap: 32px; } .stage iframe { height: 70vh; border-radius: 12px; } .top a.opt { display: none; } }
+  @media (max-width: 720px) { .views { grid-template-columns: 1fr; gap: 32px; } .top a.opt { display: none; } }
+  /* The launch look: bigger statements, a full-width live demo, the three tools as words, one closing line. */
+  .hero { padding-top: clamp(40px, 8vw, 120px); }
+  .hero .say { font-size: clamp(44px, 8.2vw, 112px); line-height: 1; }
+  .hero .say > span { background-size: 160% 100%; animation: drift 14s ease-in-out infinite alternate; }
+  @keyframes drift { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+  .sub { font-weight: 600; font-size: clamp(22px, 2.5vw, 34px); letter-spacing: -0.025em; line-height: 1.15; margin: clamp(22px, 3vw, 36px) 0 0; color: var(--ink); }
+  .stage { margin-top: clamp(48px, 7vw, 96px); width: 100vw; margin-left: calc(50% - 50vw); }
+  .stage iframe { height: min(82vh, 860px); border: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); border-radius: 0; }
+  .stage figcaption { max-width: var(--wide); margin: 14px auto 0; padding: 0 28px; }
+  .tools > li { padding: clamp(22px, 3vw, 38px) 0; align-items: center; grid-template-columns: minmax(200px, 380px) 1fr; }
+  .tool { font-weight: 650; font-size: clamp(32px, 4.6vw, 62px); letter-spacing: -0.035em; line-height: 1; }
+  .tool > span { display: inline-block; background: var(--spectrum); -webkit-background-clip: text; background-clip: text; color: transparent; padding-bottom: 0.12em; }
+  .close { padding-bottom: clamp(40px, 6vw, 80px); }
+  .say.huge { font-size: clamp(56px, 12.5vw, 176px); line-height: 0.98; letter-spacing: -0.045em; }
+  .rv { opacity: 0; transform: translateY(14px); transition: opacity 0.8s ease, transform 0.8s ease; }
+  .rv.in { opacity: 1; transform: none; }
+  @media (max-width: 720px) { .stage iframe { height: 72vh; } .stage figcaption { padding: 0 18px; } .tools > li { grid-template-columns: 1fr; gap: 10px; } }
+  @media (prefers-reduced-motion: reduce) { .hero .say > span { animation: none; background-size: 100% 100%; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <a class="mark" href="./">Brainprint</a>
+    <a class="mark" href="./">Brainplug</a>
     <a class="opt" href="#memory" data-i="navMemory"></a>
     <a class="opt" href="#reads" data-i="navReads"></a>
     <a class="opt" href="#how" data-i="navHow"></a>
-    <a href="https://github.com/juanmariarodriguez2-png/brainprint">GitHub</a>
+    <a href="https://github.com/juanmariarodriguez2-png/brainplug">GitHub</a>
     <button class="lang" id="lang" type="button"></button>
   </header>
 
   <main>
     <div class="hero">
       <h1 class="say" data-i="heroSay"></h1>
+      <p class="sub" data-i="heroSub"></p>
       <p class="lead" data-i="heroLead"></p>
       <div class="actions">
         <a class="btn" href="app/" id="make" data-i="make"></a>
-        <a class="btn ghost" href="https://github.com/juanmariarodriguez2-png/brainprint" data-i="code"></a>
+        <a class="btn ghost" href="https://github.com/juanmariarodriguez2-png/brainplug" data-i="code"></a>
       </div>
       <figure class="stage">
-        <iframe src="demo.html" title="Brainprint demo" loading="lazy"></iframe>
+        <iframe src="demo.html" title="Brainplug demo" loading="lazy"></iframe>
         <figcaption data-i="demoCap"></figcaption>
       </figure>
     </div>
@@ -60,19 +81,19 @@
     <section id="memory">
       <h2 class="say" data-i="agSay"></h2>
       <p class="lead" data-i="agLead"></p>
-      <ul class="rows after">
-        <li><span class="name"><code>context</code></span><span class="what" data-i="agContext"></span></li>
-        <li><span class="name"><code>recall</code></span><span class="what" data-i="agRecall"></span></li>
-        <li><span class="name"><code>remember</code></span><span class="what" data-i="agRemember"></span></li>
+      <ul class="rows after tools">
+        <li><span class="name tool"><span>context</span></span><span class="what" data-i="agContext"></span></li>
+        <li><span class="name tool"><span>recall</span></span><span class="what" data-i="agRecall"></span></li>
+        <li><span class="name tool"><span>remember</span></span><span class="what" data-i="agRemember"></span></li>
       </ul>
-      <pre class="after"><code>pip install "brainprint[agent]"
-brainprint brain ~/Vault
-brainprint mcp --brain ~/Vault chatgpt.zip Sent.mbox</code></pre>
+      <pre class="after"><code>pip install "brainplug[agent]"
+brainplug brain ~/Vault
+brainplug mcp --brain ~/Vault chatgpt.zip Sent.mbox</code></pre>
       <p class="note" data-i="agCfg"></p>
       <pre><code>{
   "mcpServers": {
-    "brainprint": {
-      "command": "brainprint",
+    "brainplug": {
+      "command": "brainplug",
       "args": ["mcp", "--brain", "/path/to/Vault", "/path/to/chatgpt.zip"]
     }
   }
@@ -116,17 +137,17 @@ brainprint mcp --brain ~/Vault chatgpt.zip Sent.mbox</code></pre>
       <ul class="rows after">
         <li><span class="name" data-i="uWebT"></span><span class="what" data-i="uWeb"></span></li>
         <li><span class="name" data-i="uPyT"></span><span class="what"><span data-i="uPy"></span>
-<pre><code>git clone https://github.com/juanmariarodriguez2-png/brainprint
-cd brainprint
+<pre><code>git clone https://github.com/juanmariarodriguez2-png/brainplug
+cd brainplug
 pip install .
-brainprint app</code></pre></span></li>
+brainplug app</code></pre></span></li>
         <li><span class="name" data-i="uCliT"></span><span class="what"><span data-i="uCli"></span>
-<pre><code>brainprint build chatgpt.zip ~/Vault Sent.mbox --me you@gmail.com -o my_brain.html</code></pre></span></li>
+<pre><code>brainplug build chatgpt.zip ~/Vault Sent.mbox --me you@gmail.com -o my_brain.html</code></pre></span></li>
         <li><span class="name" data-i="uLiveT"></span><span class="what"><span data-i="uLive"></span>
-<pre><code>brainprint sync --init ~/Vault ~/Downloads/brainprint-capture.json -o my_brain.html
-brainprint sync --watch</code></pre></span></li>
+<pre><code>brainplug sync --init ~/Vault ~/Downloads/brainplug-capture.json -o my_brain.html
+brainplug sync --watch</code></pre></span></li>
         <li><span class="name" data-i="uBackT"></span><span class="what"><span data-i="uBack"></span>
-<pre><code>brainprint build chatgpt.zip ~/Vault --vault ~/Vault</code></pre></span></li>
+<pre><code>brainplug build chatgpt.zip ~/Vault --vault ~/Vault</code></pre></span></li>
       </ul>
     </section>
 
@@ -148,13 +169,17 @@ brainprint sync --watch</code></pre></span></li>
         <li><span class="name" data-i="h3T"></span><span class="what" data-i="h3"></span></li>
         <li><span class="name" data-i="h4T"></span><span class="what" data-i="h4"></span></li>
       </ul>
+    </section>
+
+    <section class="close">
+      <p class="say huge" data-i="closeSay"></p>
       <div class="actions"><a class="btn" href="app/" data-i="make"></a></div>
     </section>
   </main>
 
   <footer class="end">
     <span data-i="foot1"></span>
-    <a href="https://github.com/juanmariarodriguez2-png/brainprint">GitHub</a>
+    <a href="https://github.com/juanmariarodriguez2-png/brainplug">GitHub</a>
     <span data-i="foot2"></span>
   </footer>
 </div>
@@ -163,9 +188,10 @@ brainprint sync --watch</code></pre></span></li>
 const TXT = {
   en: {
     lang: '<b>EN</b> / ES', navMemory: 'Memory for your AI', navReads: 'What it reads', navHow: 'How it works', copy: 'Copy', copied: 'Copied',
-    title: 'Brainprint: everything you write, as a 3D brain',
-    heroSay: 'Everything you write has a shape.',
-    heroLead: 'Brainprint turns your AI chats, your notes, your mail and your messages into a 3D brain you can walk through, and into a memory your AI assistants plug into so they never start from zero. It all stays on your computer.',
+    title: 'Brainplug — plug your brain into any AI',
+    heroSay: 'Plug your brain into any AI.',
+    heroSub: 'Everything you write has a shape.', closeSay: 'Plug your brain in.',
+    heroLead: 'Brainplug turns your AI chats, your notes, your mail and your messages into a 3D brain you can walk through, and into a memory your AI assistants plug into so they never start from zero. It all stays on your computer.',
     make: 'Make mine', code: 'Read the code',
     demoCap: 'A live example with invented data. Drag to turn it, click a dot to open it, press Galaxy, or press play to watch 18 months grow.',
     readsSay: 'It reads what you already have, the way each app hands it over.',
@@ -196,29 +222,30 @@ const TXT = {
     uLiveT: 'Always up to date', uLive: 'Save your sources once; after that it rebuilds whenever a note changes or the extension saves new messages.',
     uBackT: 'Back into your notes', uBack: 'Write your topics and chats into Obsidian as linked notes. Notes you already have are linked, never copied.',
     agSay: 'Plug your AI into it and stop explaining who you are.',
-    agLead: 'Every new chat starts blank, so you paste the same background again and again. Brainprint is a second brain your assistants share: a small server on your computer that Claude Desktop, Claude Code, Cursor and other MCP clients connect to. What one assistant learns today, the next one already knows.',
+    agLead: 'Every new chat starts blank, so you paste the same background again and again. Brainplug is a second brain your assistants share: a small server on your computer that Claude Desktop, Claude Code, Cursor and other MCP clients connect to. What one assistant learns today, the next one already knows.',
     agContext: 'A short briefing at the start of a conversation: your “About me” note, what you asked assistants to keep in mind, what you are writing about lately. A few hundred words instead of a pasted prompt.',
     agRecall: 'The assistant looks up only what it needs, across your notes, past chats, mail and memories, and gets excerpts rather than whole files.',
-    agRemember: 'A decision, a preference, a fact about a project: saved as a Markdown note in <code>Brainprint/Memory</code> inside your Obsidian vault, where you can read it, edit it or delete it.',
+    agRemember: 'A decision, a preference, a fact about a project: saved as a Markdown note in <code>Brainplug/Memory</code> inside your Obsidian vault, where you can read it, edit it or delete it.',
     agCfg: 'In Claude Desktop, add it under Settings › Developer › Edit config:',
-    agNote: 'Your “About me” note is yours: assistants read it and never change it. Forgetting a memory archives the note; it does not delete it. What an assistant reads is sent to the AI model it runs on, like anything else you show it. For an assistant that cannot run a local server, <code>brainprint brain ~/Vault --context</code> prints the briefing to paste.',
+    agNote: 'Your “About me” note is yours: assistants read it and never change it. Forgetting a memory archives the note; it does not delete it. What an assistant reads is sent to the AI model it runs on, like anything else you show it. For an assistant that cannot run a local server, <code>brainplug brain ~/Vault --context</code> prints the briefing to paste.',
     prSay: 'Your words do not leave your computer.',
     p1T: 'Nothing is uploaded', p1: 'No account, no server, no tracking. Once the web app has loaded you can switch off your wifi and it still builds your brain. The result is a single file that opens offline.',
     p2T: 'Private mode', p2: 'One switch leaves every title and every word out of the result, so you can share the map without sharing what is in it.',
-    p3T: 'Your data, your call', p3: 'If you ever want to hand your writing to a researcher, <code>--dataset</code> writes it as a file with emails, links and phone numbers masked. It is masking, not anonymity: read it first. Brainprint sells nothing and brokers nothing.',
+    p3T: 'Your data, your call', p3: 'If you ever want to hand your writing to a researcher, <code>--dataset</code> writes it as a file with emails, links and phone numbers masked. It is masking, not anonymity: read it first. Brainplug sells nothing and brokers nothing.',
     p4T: 'Open source', p4: 'MIT licence. The tests check that the AI’s answers, other people’s mail and private-mode text never reach the output.',
     howSay: 'Classic machine learning, with nothing hidden.',
     h1T: 'Topics', h1: 'TF-IDF with word pairs, reduced with latent semantic analysis and grouped with k-means. The number of topics is chosen by silhouette score. English and Spanish.',
     h2T: 'Connections', h2: 'Nearest neighbours by cosine similarity, plus the links you wrote yourself. Items nearly as close to another topic as to their own become bridges.',
     h3T: 'Shapes', h3: 'The brain is a volume built from ellipsoids, with topic centres spread by farthest-point sampling. The galaxy puts time on the radius and topics on the arms. A three.js shader morphs one into the other.',
     h4T: 'Two engines', h4: 'Python uses scikit-learn. The browser runs a dependency-free JavaScript port: its own TF-IDF, randomized SVD and k-means. A test feeds both the same files and requires the same numbers.',
-    foot1: 'Brainprint is open source (MIT), built by Juan Rodríguez.', foot2: 'No cookies, no analytics.',
+    foot1: 'Brainplug is open source (MIT), built by Juan Rodríguez.', foot2: 'No cookies, no analytics.',
   },
   es: {
     lang: 'EN / <b>ES</b>', navMemory: 'Memoria para tu IA', navReads: 'Qué lee', navHow: 'Cómo funciona', copy: 'Copiar', copied: 'Copiado',
-    title: 'Brainprint: todo lo que escribes, en un cerebro 3D',
-    heroSay: 'Todo lo que escribes tiene una forma.',
-    heroLead: 'Brainprint convierte tus chats con IA, tus notas, tus correos y tus mensajes en un cerebro 3D que puedes recorrer, y en una memoria a la que se conectan tus asistentes de IA para no empezar nunca de cero. Todo se queda en tu ordenador.',
+    title: 'Brainplug — enchufa tu cerebro a cualquier IA',
+    heroSay: 'Enchufa tu cerebro a cualquier IA.',
+    heroSub: 'Todo lo que escribes tiene una forma.', closeSay: 'Enchufa tu cerebro.',
+    heroLead: 'Brainplug convierte tus chats con IA, tus notas, tus correos y tus mensajes en un cerebro 3D que puedes recorrer, y en una memoria a la que se conectan tus asistentes de IA para no empezar nunca de cero. Todo se queda en tu ordenador.',
     make: 'Crear el mío', code: 'Leer el código',
     demoCap: 'Un ejemplo en vivo con datos inventados. Arrastra para girarlo, pulsa un punto para abrirlo, prueba Galaxia o dale a reproducir para ver crecer 18 meses.',
     readsSay: 'Lee lo que ya tienes, tal como te lo da cada app.',
@@ -249,23 +276,23 @@ const TXT = {
     uLiveT: 'Siempre al día', uLive: 'Guarda tus fuentes una vez; a partir de ahí se rehace cada vez que cambia una nota o la extensión guarda mensajes nuevos.',
     uBackT: 'De vuelta a tus notas', uBack: 'Escribe tus temas y chats en Obsidian como notas enlazadas. Las notas que ya tienes se enlazan, nunca se copian.',
     agSay: 'Conéctale tu IA y deja de explicarle quién eres.',
-    agLead: 'Cada chat nuevo empieza en blanco, así que pegas el mismo contexto una y otra vez. Brainprint es un segundo cerebro que comparten tus asistentes: un pequeño servidor en tu ordenador al que se conectan Claude Desktop, Claude Code, Cursor y otros clientes MCP. Lo que un asistente aprende hoy, el siguiente ya lo sabe.',
+    agLead: 'Cada chat nuevo empieza en blanco, así que pegas el mismo contexto una y otra vez. Brainplug es un segundo cerebro que comparten tus asistentes: un pequeño servidor en tu ordenador al que se conectan Claude Desktop, Claude Code, Cursor y otros clientes MCP. Lo que un asistente aprende hoy, el siguiente ya lo sabe.',
     agContext: 'Un resumen corto al empezar la conversación: tu nota «Sobre mí», lo que has pedido a los asistentes que tengan presente y de qué escribes últimamente. Unos cientos de palabras en lugar de un prompt pegado.',
     agRecall: 'El asistente busca solo lo que necesita entre tus notas, chats antiguos, correos y recuerdos, y recibe fragmentos en vez de archivos enteros.',
-    agRemember: 'Una decisión, una preferencia, un dato de un proyecto: se guarda como nota Markdown en <code>Brainprint/Memory</code>, dentro de tu bóveda de Obsidian, donde puedes leerla, editarla o borrarla.',
+    agRemember: 'Una decisión, una preferencia, un dato de un proyecto: se guarda como nota Markdown en <code>Brainplug/Memory</code>, dentro de tu bóveda de Obsidian, donde puedes leerla, editarla o borrarla.',
     agCfg: 'En Claude Desktop, añádelo en Ajustes › Desarrollador › Editar configuración:',
-    agNote: 'Tu nota «Sobre mí» es tuya: los asistentes la leen y nunca la cambian. Olvidar un recuerdo archiva la nota; no la borra. Lo que un asistente lee se envía al modelo de IA con el que funciona, igual que cualquier otra cosa que le enseñes. Para un asistente que no puede ejecutar un servidor local, <code>brainprint brain ~/Vault --context</code> imprime el resumen para pegarlo.',
+    agNote: 'Tu nota «Sobre mí» es tuya: los asistentes la leen y nunca la cambian. Olvidar un recuerdo archiva la nota; no la borra. Lo que un asistente lee se envía al modelo de IA con el que funciona, igual que cualquier otra cosa que le enseñes. Para un asistente que no puede ejecutar un servidor local, <code>brainplug brain ~/Vault --context</code> imprime el resumen para pegarlo.',
     prSay: 'Tus palabras no salen de tu ordenador.',
     p1T: 'No se sube nada', p1: 'Sin cuenta, sin servidor, sin rastreo. Una vez cargada la app web, puedes desconectar el wifi y sigue construyendo tu cerebro. El resultado es un único archivo que se abre sin conexión.',
     p2T: 'Modo privado', p2: 'Un interruptor deja fuera todos los títulos y todo el texto, para que puedas compartir el mapa sin compartir lo que contiene.',
-    p3T: 'Tus datos, tu decisión', p3: 'Si algún día quieres ceder lo que has escrito a un investigador, <code>--dataset</code> lo guarda en un archivo con correos, enlaces y teléfonos tapados. Es tapar, no anonimizar: léelo antes. Brainprint no vende nada ni hace de intermediario.',
+    p3T: 'Tus datos, tu decisión', p3: 'Si algún día quieres ceder lo que has escrito a un investigador, <code>--dataset</code> lo guarda en un archivo con correos, enlaces y teléfonos tapados. Es tapar, no anonimizar: léelo antes. Brainplug no vende nada ni hace de intermediario.',
     p4T: 'Código abierto', p4: 'Licencia MIT. Los tests comprueban que las respuestas de la IA, el correo ajeno y el texto en modo privado nunca llegan al resultado.',
     howSay: 'Machine learning clásico, sin nada escondido.',
     h1T: 'Temas', h1: 'TF-IDF con pares de palabras, reducido con análisis semántico latente y agrupado con k-means. El número de temas se elige con el coeficiente de silueta. En español y en inglés.',
     h2T: 'Conexiones', h2: 'Vecinos más cercanos por similitud del coseno, más los enlaces que escribiste tú. Lo que queda casi tan cerca de otro tema como del suyo se convierte en puente.',
     h3T: 'Formas', h3: 'El cerebro es un volumen hecho de elipsoides, con los centros de los temas repartidos por farthest-point sampling. La galaxia pone el tiempo en el radio y los temas en los brazos. Un shader de three.js transforma una en otra.',
     h4T: 'Dos motores', h4: 'Python usa scikit-learn. El navegador ejecuta una versión en JavaScript sin dependencias: su propio TF-IDF, SVD aleatorizado y k-means. Un test les da los mismos archivos a los dos y exige los mismos números.',
-    foot1: 'Brainprint es código abierto (MIT), creado por Juan Rodríguez.', foot2: 'Sin cookies ni analítica.',
+    foot1: 'Brainplug es código abierto (MIT), creado por Juan Rodríguez.', foot2: 'Sin cookies ni analítica.',
   },
 };
 let lang = new URLSearchParams(location.search).get('lang') || (navigator.language || 'en').slice(0, 2);
@@ -291,6 +318,10 @@ document.querySelectorAll('pre').forEach(pre => {
 });
 document.getElementById('lang').onclick = () => { lang = lang === 'en' ? 'es' : 'en'; apply(); };
 apply();
+if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' });
+  document.querySelectorAll('main section, .stage').forEach(el => { el.classList.add('rv'); io.observe(el); });
+}
 </script>
 </body>
 </html>

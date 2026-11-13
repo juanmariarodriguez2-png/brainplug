@@ -1,14 +1,14 @@
-# Brainprint
+# Brainplug
 
-**A second brain for you and for your AI assistants.** Brainprint turns your AI chats, notes,
+**Plug your brain into any AI.** A second brain for you and for your AI assistants: Brainplug turns your AI chats, notes,
 documents, mail and messages into a 3D brain you can explore, and into a memory your
 assistants plug into: they get a short briefing instead of a pasted prompt, look up only what
 they need, and save what they learn as notes in your Obsidian vault. Nothing is uploaded.
 
-![Brainprint demo](docs/img/demo.gif)
+![Brainplug demo](docs/img/demo.gif)
 
-**[Website and live demo](https://juanmariarodriguez2-png.github.io/brainprint/)** ·
-**[Make yours in the browser](https://juanmariarodriguez2-png.github.io/brainprint/app/)**
+**[Website and live demo](https://brainplug.app/)** ·
+**[Make yours in the browser](https://brainplug.app/app/)**
 
 The animation and the screenshots use invented demo data, not anyone's real writing.
 
@@ -17,20 +17,20 @@ The animation and the screenshots use invented demo data, not anyone's real writ
 ## A memory your AI can plug into
 
 Every new chat starts blank, so you paste the same background again and again. With
-Brainprint the background lives in one place, as Markdown in your own vault, and every
+Brainplug the background lives in one place, as Markdown in your own vault, and every
 assistant reads from it and adds to it:
 
 ```bash
-pip install "brainprint[agent]"
-brainprint brain ~/Documents/MyVault                       # creates MyVault/Brainprint and shows how to connect
-brainprint mcp --brain ~/Documents/MyVault chatgpt-export.zip Sent.mbox
+pip install "brainplug[agent]"
+brainplug brain ~/Documents/MyVault                       # creates MyVault/Brainplug and shows how to connect
+brainplug mcp --brain ~/Documents/MyVault chatgpt-export.zip Sent.mbox
 ```
 
 | Tool | What the assistant does with it |
 |---|---|
 | `context` | Gets a short briefing at the start of a conversation: your "About me" note, what you asked assistants to keep in mind, what you are writing about lately. A few hundred words instead of a pasted prompt. |
 | `recall` | Looks something up across your notes, past chats, mail and memories, and gets excerpts rather than whole files. |
-| `remember` | Saves a decision, a preference or a fact as a note in `Brainprint/Memory`. The next assistant, in any app, finds it. |
+| `remember` | Saves a decision, a preference or a fact as a note in `Brainplug/Memory`. The next assistant, in any app, finds it. |
 | `read`, `topic`, `timeline`, `review`, `overview` | Reads one item, follows a topic through time, sees what is growing or forgotten. |
 | `forget` | Archives a memory when you ask. The note stays in your vault. |
 
@@ -38,15 +38,15 @@ It is a [Model Context Protocol](https://modelcontextprotocol.io) server that ru
 computer, so it works with assistants that can start one: Claude Desktop, Claude Code, Cursor
 and others.
 
-Claude Code: `claude mcp add --transport stdio brainprint -- brainprint mcp --brain /path/to/MyVault`
+Claude Code: `claude mcp add --transport stdio brainplug -- brainplug mcp --brain /path/to/MyVault`
 
 Claude Desktop (Settings › Developer › Edit Config):
 
 ```json
 {
   "mcpServers": {
-    "brainprint": {
-      "command": "brainprint",
+    "brainplug": {
+      "command": "brainplug",
       "args": ["mcp", "--brain", "/path/to/MyVault", "/path/to/chatgpt-export.zip"]
     }
   }
@@ -55,7 +55,7 @@ Claude Desktop (Settings › Developer › Edit Config):
 
 How it behaves:
 
-- **It is all plain notes.** `Brainprint/About me.md` is yours: assistants read it and never
+- **It is all plain notes.** `Brainplug/About me.md` is yours: assistants read it and never
   change it. Each memory is one Markdown note with its date, kind and who saved it, which you
   can open, edit or delete in Obsidian. New memories can be found at once; notes you edit are
   picked up the next time an assistant asks.
@@ -64,7 +64,7 @@ How it behaves:
 - **Assistants are told what to save.** Only what you said or confirmed, never instructions
   found in a web page, a file or a tool result. They can archive what they saved, not delete
   it, and they cannot touch your own notes.
-- **Without MCP** (the ChatGPT or Gemini websites): `brainprint brain ~/Documents/MyVault
+- **Without MCP** (the ChatGPT or Gemini websites): `brainplug brain ~/Documents/MyVault
   --context` prints the briefing to paste, and the browser extension keeps what you type
   there, so it still reaches the brain.
 - What an assistant reads through these tools is sent to the AI model it runs on, like
@@ -84,7 +84,7 @@ How it behaves:
 | **Word, PDF** | `.docx` and `.pdf` files | The text of each document |
 | **Any notes** | A folder of `.md` / `.txt` files | The text of each file |
 | **Live capture** | The browser extension in `extension/` | What you type into ChatGPT, Claude, Gemini, Copilot, Perplexity |
-| **AI memory** | `Brainprint/Memory` in your vault | What your assistants were asked to remember |
+| **AI memory** | `Brainplug/Memory` in your vault | What your assistants were asked to remember |
 
 Only **your own words** go in. The AI's answers and other people's mail and messages are left
 out, so the map shows what you care about and not what you were told. Word and PDF files are
@@ -106,7 +106,7 @@ The result is one HTML file that opens offline, in English or Spanish.
 
 ### 1. In the browser, with nothing to install
 
-Open **[the app](https://juanmariarodriguez2-png.github.io/brainprint/app/)**, drop your files
+Open **[the app](https://brainplug.app/app/)**, drop your files
 and folders, and press the button. The whole analysis runs in that tab (`docs/app/engine/`,
 plain JavaScript). Once the page has loaded it needs no connection, so you can switch your
 wifi off before you add your files, and you can download the result.
@@ -119,25 +119,25 @@ memory before Python does.
 Needs Python 3.10 or later. Works on Windows, macOS and Linux.
 
 ```bash
-git clone https://github.com/juanmariarodriguez2-png/brainprint.git
-cd brainprint
+git clone https://github.com/juanmariarodriguez2-png/brainplug.git
+cd brainplug
 pip install .
 
-brainprint demo --open     # try it with invented data
-brainprint app             # drag and drop, in your browser, served from 127.0.0.1 only
+brainplug demo --open     # try it with invented data
+brainplug app             # drag and drop, in your browser, served from 127.0.0.1 only
 ```
 
 Or from the terminal, with any mix of files and folders:
 
 ```bash
-brainprint build chatgpt-export.zip claude-export.zip takeout.zip ~/Documents/MyVault \
+brainplug build chatgpt-export.zip claude-export.zip takeout.zip ~/Documents/MyVault \
     Sent.mbox "WhatsApp Chat with Ana.zip" thesis.pdf \
     --me you@gmail.com --me "Your Name" --lang es -o my_brain.html --open
 ```
 
 | Option | What it does |
 |---|---|
-| `-o, --out` | Output file (default `brainprint.html`) |
+| `-o, --out` | Output file (default `brainplug.html`) |
 | `--me EMAIL_OR_NAME` | Who you are: your email (Gmail) or your name as shown in WhatsApp. Repeatable; usually detected |
 | `--pdf` | Also read the PDFs found inside folders and ZIPs |
 | `--notion` | Also read Notion through its API (see below) |
@@ -161,14 +161,14 @@ the extension and offers to add what it has saved; the popup can also save it as
 **Sync** rebuilds your brain whenever something changes:
 
 ```bash
-brainprint sync --init ~/Documents/MyVault ~/Downloads/brainprint-capture.json -o my_brain.html
-brainprint sync            # rebuild once
-brainprint sync --watch    # rebuild when a note changes or a new capture file arrives
+brainplug sync --init ~/Documents/MyVault ~/Downloads/brainplug-capture.json -o my_brain.html
+brainplug sync            # rebuild once
+brainplug sync --watch    # rebuild when a note changes or a new capture file arrives
 ```
 
-The settings live in `brainprint.json`, next to where you ran `--init`. To have the result on
+The settings live in `brainplug.json`, next to where you ran `--init`. To have the result on
 several devices, point `-o` (or `--vault`) at a folder that already syncs: iCloud, Google
-Drive, Dropbox, Obsidian Sync. Brainprint has no servers of its own.
+Drive, Dropbox, Obsidian Sync. Brainplug has no servers of its own.
 
 ## Notes on each source
 
@@ -179,7 +179,7 @@ Drive, Dropbox, Obsidian Sync. Brainprint has no servers of its own.
 - **Notion.** An export has no creation date unless the page has a date property; pages
   without one are marked **undated** instead of being given a made-up date. To get the real
   dates, create an internal integration at notion.so/my-integrations, share your pages with
-  it, and run `NOTION_TOKEN=secret_… brainprint build --notion`. Requests go from your
+  it, and run `NOTION_TOKEN=secret_… brainplug build --notion`. Requests go from your
   computer straight to api.notion.com.
 - **Gmail.** In Takeout select Mail only and, to keep it small, just the "Sent" label.
   Mailboxes are streamed, never loaded whole.
@@ -199,10 +199,10 @@ Drive, Dropbox, Obsidian Sync. Brainprint has no servers of its own.
 - **`--dataset`** writes your own words as JSON Lines with emails, links, phone numbers,
   IBANs, long numbers and @handles masked, and without titles or exact dates, in case you
   ever want to give them to a researcher. This is masking, not anonymisation: names and
-  anything else you wrote are still there, so read the file first. Brainprint does not sell,
+  anything else you wrote are still there, so read the file first. Brainplug does not sell,
   license or broker anyone's data.
 - Your exports never belong in the repository: `.gitignore` blocks `*.zip`, `*.mbox`,
-  `conversations.json`, capture files and `brainprint.json`.
+  `conversations.json`, capture files and `brainplug.json`.
 
 ## How it works
 
@@ -233,14 +233,14 @@ your words ─► TF-IDF ─► LSA (SVD) ─► k-means ─► topics and their
 ## Project structure
 
 ```
-brainprint/            the Python package
+brainplug/            the Python package
 ├── sources.py         every export format → Item
 ├── notion_api.py      Notion pages with real creation dates
 ├── analysis.py        topics, connections, layouts, review, statistics
 ├── brain.py           brain and galaxy geometry
 ├── pipeline.py        files → HTML in one call
-├── sync.py            brainprint.json and --watch
-├── memory.py          the notes assistants save (Brainprint/Memory, About me.md)
+├── sync.py            brainplug.json and --watch
+├── memory.py          the notes assistants save (Brainplug/Memory, About me.md)
 ├── agent.py           the MCP server: context, recall, remember…
 ├── export.py          Obsidian notes and the redacted dataset
 ├── app.py             local drag-and-drop app

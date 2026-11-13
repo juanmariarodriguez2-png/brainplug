@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from brainprint import demo  # noqa: E402
+from brainplug import demo  # noqa: E402
 from helpers import tiny_docx, tiny_pdf  # noqa: E402
 
 LOCAL = ZoneInfo("Europe/Madrid")
@@ -74,8 +74,8 @@ def write_inputs(out: Path, n: int = 240, pdf: bool = True) -> dict[str, int]:
     for i, it in enumerate(by.get("claude", [])[:4]):
         rows += [{"site": "copilot", "conv": f"k{i}", "title": it.title, "ts": int(when.timestamp() * 1000) + 60000, "text": line}
                  for line, when in zip(it.text.split("\n"), it.parts)]
-    (out / "brainprint-capture.json").write_text(
-        json.dumps({"format": "brainprint-capture", "version": 1, "items": rows}), encoding="utf-8")
+    (out / "brainplug-capture.json").write_text(
+        json.dumps({"format": "brainplug-capture", "version": 1, "items": rows}), encoding="utf-8")
 
     # Obsidian vault
     vault = out / "MyVault"
@@ -91,21 +91,21 @@ def write_inputs(out: Path, n: int = 240, pdf: bool = True) -> dict[str, int]:
             f"{it.text}\n\nSee also {links}\n", encoding="utf-8")
     (vault / "paper someone else wrote.pdf").write_bytes(tiny_pdf("OTHERWORD text that is not yours at all"))
 
-    # The Brainprint folder inside the vault: memories saved by assistants are read; the notes
-    # Brainprint exported itself (Items, Topics, the index) and the empty "About me" are not.
-    brain = vault / "Brainprint"
+    # The Brainplug folder inside the vault: memories saved by assistants are read; the notes
+    # Brainplug exported itself (Items, Topics, the index) and the empty "About me" are not.
+    brain = vault / "Brainplug"
     for sub in ("Memory", "Topics", "Items/ChatGPT"):
         (brain / sub).mkdir(parents=True, exist_ok=True)
     (brain / "Memory" / "2026-01-05 Answer style.md").write_text(
         "---\ncreated: 2026-01-05T10:00:00+00:00\nkind: preference\nsaved_by: Claude\npinned: true\n"
-        "tags: [brainprint/memory, brainprint/preference]\n---\n\n# Answer style\n\n"
+        "tags: [brainplug/memory, brainplug/preference]\n---\n\n# Answer style\n\n"
         "Prefers concise answers with one worked example and no preamble\n", encoding="utf-8")
     (brain / "Memory" / "2026-01-06 Old plan.md").write_text(
         "---\narchived: true\ncreated: 2026-01-06T10:00:00+00:00\n---\n\nOTHERWORD a memory that was archived and must be ignored\n",
         encoding="utf-8")
     (brain / "About me.md").write_text(
-        "---\ncreated: 2026-01-01\n---\n# About me\n\n<!-- brainprint: fill this in. -->\n\n- Name:\n- What I do:\n", encoding="utf-8")
-    (brain / "Brainprint.md").write_text("# Brainprint\n\nOTHERWORD an index written by the exporter\n", encoding="utf-8")
+        "---\ncreated: 2026-01-01\n---\n# About me\n\n<!-- brainplug: fill this in. -->\n\n- Name:\n- What I do:\n", encoding="utf-8")
+    (brain / "Brainplug.md").write_text("# Brainplug\n\nOTHERWORD an index written by the exporter\n", encoding="utf-8")
     (brain / "Topics" / "pandas.md").write_text("# pandas\n\nOTHERWORD a topic page written by the exporter\n", encoding="utf-8")
     (brain / "Items" / "ChatGPT" / "Read CSV.md").write_text("# Read CSV\n\nOTHERWORD a copy of a chat written by the exporter\n", encoding="utf-8")
 

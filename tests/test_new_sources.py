@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from brainprint import notion_api, sources
+from brainplug import notion_api, sources
 from helpers import tiny_docx, tiny_pdf
 
 GEMINI = [
@@ -63,12 +63,12 @@ def test_gemini_takeout_json_and_html(tmp_path):
 
 
 def test_capture_file_and_duplicates(tmp_path):
-    capture = {"format": "brainprint-capture", "version": 1, "items": [
+    capture = {"format": "brainplug-capture", "version": 1, "items": [
         {"site": "chatgpt", "conv": "c1", "title": "Pandas groupby", "ts": 1735732801000, "text": "how do I groupby in pandas?"},
         {"site": "chatgpt", "conv": "c1", "title": "Pandas groupby", "ts": 1735732901000, "text": "and how do I aggregate two columns at once?"},
         {"site": "claude", "conv": "u9", "title": "", "ts": 1735800000000, "text": "draft a cover letter for a data internship"},
     ]}
-    (tmp_path / "brainprint-capture.json").write_text(json.dumps(capture))
+    (tmp_path / "brainplug-capture.json").write_text(json.dumps(capture))
     export = [{"id": "c1", "title": "Pandas groupby", "create_time": 1735732800.0, "mapping": {
         "b": {"message": {"author": {"role": "user"}, "create_time": 1735732801.0,
                           "content": {"parts": ["how do I groupby in pandas?"]}}}}}]

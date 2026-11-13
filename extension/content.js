@@ -1,4 +1,4 @@
-// Brainprint capture: keeps a copy of the messages YOU send to an AI assistant.
+// Brainplug capture: keeps a copy of the messages YOU send to an AI assistant.
 // It never reads the answers and never talks to the network: the text goes to
 // this browser's extension storage and stays there until you export or delete it.
 //

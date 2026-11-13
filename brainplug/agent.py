@@ -1,12 +1,12 @@
 """A second brain your AI assistants can plug into.
 
-``brainprint mcp --brain ~/Vault [exports…]`` starts a Model Context Protocol
+``brainplug mcp --brain ~/Vault [exports…]`` starts a Model Context Protocol
 server on this computer. Any MCP client (Claude Desktop, Claude Code, Cursor…)
 can then:
 
 * ``context``   get a short briefing about you instead of a long pasted prompt
 * ``recall``    look something up in everything you have written
-* ``remember``  save a memory as a Markdown note in ``<vault>/Brainprint/Memory``
+* ``remember``  save a memory as a Markdown note in ``<vault>/Brainplug/Memory``
 * ``read``, ``topic``, ``timeline``, ``review``, ``overview``, ``forget``
 
 So a new conversation starts from what your brain already holds, and what an
@@ -34,7 +34,7 @@ from . import analysis, memory
 from .sources import Item
 
 INSTRUCTIONS = (
-    "Brainprint is this person's second brain: what they have written (AI chats, notes, documents, mail, "
+    "Brainplug is this person's second brain: what they have written (AI chats, notes, documents, mail, "
     "messages) and what their assistants were asked to remember. "
     "At the start of a conversation call `context`: it is short and saves them from repeating themselves. "
     "Before asking for background they may already have given, call `recall`. "
@@ -200,7 +200,7 @@ class Brain:
         return f"Saved as #{i + 1} in {memory.FOLDER}/{memory.MEMORY}/{path.name}" + (" (pinned: it is part of `context`)." if pin else ".")
 
     def forget(self, item: str) -> str:
-        """Put a memory away. Only notes in Brainprint/Memory can be archived, and the file is kept."""
+        """Put a memory away. Only notes in Brainplug/Memory can be archived, and the file is kept."""
         i = self._number(item)
         if i is None:
             return f"There is no item {item}."
@@ -346,8 +346,8 @@ def make_server(brain: Brain):
         except ImportError:
             from mcp.server.fastmcp import FastMCP as Server  # MCP SDK 1.x
     except ImportError as err:
-        raise SystemExit('The agent server needs the MCP SDK:  pip install "brainprint[agent]"  (or: pip install mcp)') from err
-    server = Server("brainprint", instructions=INSTRUCTIONS)
+        raise SystemExit('The agent server needs the MCP SDK:  pip install "brainplug[agent]"  (or: pip install mcp)') from err
+    server = Server("brainplug", instructions=INSTRUCTIONS)
 
     @server.tool()
     def context(max_chars: int = 1800) -> str:

@@ -1,14 +1,14 @@
-"""Keep your brainprint up to date.
+"""Keep your brainplug up to date.
 
-``brainprint sync --init …`` saves which files and folders make up your record
-in ``brainprint.json``. After that, ``brainprint sync`` rebuilds it in one
-step, and ``brainprint sync --watch`` rebuilds whenever something changes: a
+``brainplug sync --init …`` saves which files and folders make up your record
+in ``brainplug.json``. After that, ``brainplug sync`` rebuilds it in one
+step, and ``brainplug sync --watch`` rebuilds whenever something changes: a
 new note in your vault, a fresh export, a new capture file from the browser
 extension.
 
 To use it on several devices, keep the output (or the ``--vault`` notes) in a
 folder that already syncs: iCloud, Google Drive, Dropbox, Obsidian Sync.
-Brainprint has no servers of its own.
+Brainplug has no servers of its own.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from typing import Callable
 
 from .pipeline import Options, run
 
-CONFIG = "brainprint.json"
+CONFIG = "brainplug.json"
 _PATHS = ("out", "vault", "json", "dataset")
 MAX_FILES = 200_000
 
@@ -39,7 +39,7 @@ def write_config(o: Options, path: str | Path = CONFIG) -> Path:
 def read_config(path: str | Path = CONFIG) -> Options:
     path = Path(path)
     if not path.exists():
-        raise FileNotFoundError(f"No {path.name} here. Create it with: brainprint sync --init <your files and folders>")
+        raise FileNotFoundError(f"No {path.name} here. Create it with: brainplug sync --init <your files and folders>")
     data = json.loads(path.read_text(encoding="utf-8"))
     known = {f.name for f in fields(Options)}
     unknown = sorted(set(data) - known)

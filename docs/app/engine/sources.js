@@ -1,5 +1,5 @@
 // Read everything you have written into one common format.
-// A port of brainprint/sources.py that runs in the browser (and in Node, for tests).
+// A port of brainplug/sources.py that runs in the browser (and in Node, for tests).
 // Every loader keeps only your own words: your side of a chat, your notes, the text
 // you typed in an email, your side of a WhatsApp chat.
 import { blobFile, bytesFile, listZip, concat } from './zip.js';
@@ -208,14 +208,14 @@ export function parseCapture(data) {
 }
 
 export function parseJson(data) {
-  if (data && !Array.isArray(data) && data.format === 'brainprint-capture') return parseCapture(data);
+  if (data && !Array.isArray(data) && data.format === 'brainplug-capture') return parseCapture(data);
   if (Array.isArray(data) && data.length) {
     const sample = data.find(c => c && typeof c === 'object' && !Array.isArray(c)) || {};
     if ('mapping' in sample) return parseChatgpt(data);
     if ('chat_messages' in sample) return parseClaude(data);
     if (data.slice(0, 50).some(isGemini)) return parseGemini(data);
   }
-  throw new Error('Unknown JSON: expected conversations.json from ChatGPT or Claude, MyActivity.json from Gemini (Google Takeout) or a Brainprint capture file.');
+  throw new Error('Unknown JSON: expected conversations.json from ChatGPT or Claude, MyActivity.json from Gemini (Google Takeout) or a Brainplug capture file.');
 }
 
 // ----------------------------------------- notes: Obsidian, Notion, folders
@@ -264,16 +264,16 @@ function metaDate(meta) {
   return null;
 }
 
-// Notes Brainprint wrote itself are a copy of things already read, so they are skipped;
+// Notes Brainplug wrote itself are a copy of things already read, so they are skipped;
 // the memory folder and "About me" are read as the source "memory".
-const GENERATED = /(?:^|\/)Brainprint\/(?:Items\/|Topics\/|Brainprint\.md$)/;
-const MEMORY = /(?:^|\/)Brainprint\/(?:Memory\/|About me\.md$)/;
+const GENERATED = /(?:^|\/)Brainplug\/(?:Items\/|Topics\/|Brainplug\.md$)/;
+const MEMORY = /(?:^|\/)Brainplug\/(?:Memory\/|About me\.md$)/;
 
 function parseNote(text, path, rel, source, mtime) {
   const [meta, body] = frontmatter(text.slice(0, MAX_NOTE));
   if (source === 'memory') {
     if (String(meta.archived || '').toLowerCase() === 'true') return null;  // a memory that was put away
-    if (body.includes('brainprint: fill this in') && !/^- [^:\n]+:[ \t]*\S/m.test(body)) return null;  // "About me" is still the empty template
+    if (body.includes('brainplug: fill this in') && !/^- [^:\n]+:[ \t]*\S/m.test(body)) return null;  // "About me" is still the empty template
   }
   const [clean, links, tags] = cleanMarkdown(body);
   if (countWords(clean) < 3) return null;
@@ -614,7 +614,7 @@ async function parsePdf(file, rel, ctx) {
 // ------------------------------------------------- files, folders and ZIPs
 const wantedJson = rel => {
   const low = rel.toLowerCase(), name = baseName(low);
-  return name === 'conversations.json' || name.includes('brainprint') || ((low.includes('gemini') || low.includes('bard')) && name.includes('activ'));
+  return name === 'conversations.json' || name.includes('brainplug') || ((low.includes('gemini') || low.includes('bard')) && name.includes('activ'));
 };
 const wantedHtml = rel => { const low = rel.toLowerCase(); return low.includes('gemini') && low.includes('activ'); };
 const hiddenPath = rel => rel.split('/').some(p => p.startsWith('.') || SKIP_DIRS.has(p));
