@@ -21,7 +21,7 @@ Brainplug the background lives in one place, as Markdown in your own vault, and 
 assistant reads from it and adds to it:
 
 ```bash
-pip install "brainplug[agent]"
+pip install "brainplug[agent] @ git+https://github.com/juanmariarodriguez2-png/brainplug.git"
 brainplug brain ~/Documents/MyVault                       # creates MyVault/Brainplug and shows how to connect
 brainplug mcp --brain ~/Documents/MyVault chatgpt-export.zip Sent.mbox
 ```
