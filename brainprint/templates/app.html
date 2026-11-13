@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brainprint</title>
+<style>
+  :root { --line: #232328; --text: #f4f4f6; --soft: #c9c9d1; --muted: #8d8d96;
+    --spectrum: linear-gradient(90deg, #6f8cff 0%, #a77bff 22%, #ff6ad5 45%, #ff5d7a 62%, #ff8a3c 82%, #ffb62e 100%);
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; color: var(--text); background: #000; -webkit-font-smoothing: antialiased; }
+  main { max-width: 760px; margin: 0 auto; padding: 56px 22px 64px; }
+  .mark { font-weight: 600; letter-spacing: -0.02em; font-size: 17px; margin: 0 0 34px; }
+  h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 600; margin: 0 0 14px; }
+  h1 span { background: var(--spectrum); -webkit-background-clip: text; background-clip: text; color: transparent;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone; padding-bottom: 0.14em; }
+  p.lead { color: var(--soft); margin: 0 0 30px; line-height: 1.5; font-size: 17px; }
+  #drop { border: 1px solid #3a3a42; border-radius: 20px; padding: 40px 22px; text-align: center; }
+  #drop.over { border-color: transparent; background: linear-gradient(#000, #000) padding-box, var(--spectrum) border-box; }
+  #drop b { display: block; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 6px; }
+  #drop small, .muted { color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .btn { all: unset; cursor: pointer; padding: 12px 22px; border-radius: 99px; background: var(--text); color: #000; font-weight: 500; font-size: 15px; border: 1px solid var(--text); }
+  .btn.ghost { background: none; color: var(--text); border-color: #3a3a42; }
+  .btn[disabled] { opacity: 0.4; cursor: default; }
+  .btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #a77bff; outline-offset: 2px; }
+  .rowb { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+  #files { margin: 16px 0 0; font-size: 14.5px; }
+  #files div { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  #files div span:last-child { color: var(--muted); }
+  details { margin: 20px 0; } summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+  textarea, input[type=text], select { width: 100%; background: #000; border: 1px solid #3a3a42; border-radius: 10px;
+    color: var(--text); padding: 10px 12px; font: inherit; font-size: 15px; }
+  textarea { min-height: 70px; margin-top: 8px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+  .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; margin: 20px 0 26px; }
+  .opts label { font-size: 13.5px; color: var(--soft); display: grid; gap: 6px; }
+  .opts .wide { grid-column: 1 / -1; }
+  .check { grid-column: 1 / -1; display: flex !important; align-items: center; gap: 9px; font-size: 14.5px !important; }
+  .check input { accent-color: #a77bff; width: 16px; height: 16px; }
+  #status { margin: 20px 0; font-size: 15px; min-height: 20px; color: var(--soft); }
+  #status.err { color: #ff8a9a; }
+  #done { display: none; border-top: 1px solid var(--line); padding: 22px 0 0; }
+  #done h2 { margin: 0 0 8px; font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+  #done li { font-size: 14.5px; margin: 4px 0; color: var(--soft); }
+  #notes { color: #ffb62e; font-size: 14px; margin: 8px 0 0; }
+  ul { padding-left: 18px; }
+  @media (max-width: 600px) { .opts { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <p class="mark">Brainprint</p>
+  <h1><span data-t="say"></span></h1>
+  <p class="lead" data-t="lead"></p>
+
+  <div id="drop">
+    <b data-t="drop"></b>
+    <small data-t="kinds"></small>
+    <div class="rowb">
+      <button class="btn ghost" id="pickFiles" data-t="pickFiles"></button>
+      <button class="btn ghost" id="pickFolder" data-t="pickFolder"></button>
+    </div>
+    <input type="file" id="inFiles" multiple hidden>
+    <input type="file" id="inFolder" webkitdirectory hidden>
+  </div>
+  <div id="files"></div>
+
+  <details>
+    <summary data-t="pathsSum"></summary>
+    <textarea id="paths" spellcheck="false" placeholder="C:\Users\you\Documents\MyVault&#10;/Users/you/Downloads/Takeout/Mail/Sent.mbox"></textarea>
+  </details>
+
+  <div class="opts">
+    <label><span data-t="title"></span><input type="text" id="title" value="My Brainprint"></label>
+    <label><span data-t="lang"></span><select id="lang"><option value="en">English</option><option value="es">Español</option></select></label>
+    <label><span data-t="topics"></span><input type="text" id="topics" placeholder="auto"></label>
+    <span></span>
+    <label class="wide"><span data-t="me"></span><input type="text" id="me" placeholder="you@gmail.com, Your Name" autocomplete="off"></label>
+    <label class="check"><input type="checkbox" id="private"><span data-t="private"></span></label>
+    <label class="check"><input type="checkbox" id="pdf"><span data-t="pdf"></span></label>
+  </div>
+
+  <button class="btn" id="go" data-t="go"></button>
+  <button class="btn ghost" id="clear" data-t="clear" style="margin-left:8px"></button>
+  <div id="status"></div>
+
+  <div id="done">
+    <h2 data-t="done"></h2>
+    <p class="muted" id="sum"></p>
+    <p id="notes"></p>
+    <ul id="topicList"></ul>
+    <div class="rowb" style="justify-content:flex-start">
+      <a class="btn" id="open" target="_blank" data-t="open"></a>
+      <a class="btn ghost" id="save" data-t="save"></a>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:30px" data-t="foot"></p>
+</main>
+<script>
+const TOKEN = '__TOKEN__';
+const ES = (navigator.language || '').toLowerCase().startsWith('es');
+const T = ES ? {
+  say: 'Suelta aquí lo que has escrito y mira qué forma tiene.',
+  lead: 'Todo se procesa en este ordenador. No se sube nada a internet.',
+  drop: 'Suelta aquí tus archivos o carpetas',
+  kinds: 'Sirven tal cual te los da cada app: el .zip de ChatGPT, Claude, Notion o Google Takeout, tu carpeta de Obsidian, un .mbox de Gmail, chats de WhatsApp, Word y PDF.',
+  pickFiles: 'Elegir archivos', pickFolder: 'Elegir carpeta',
+  pathsSum: 'O pega la ruta de una carpeta o archivo (mejor para buzones y carpetas muy grandes)',
+  title: 'Título', lang: 'Idioma de la página', me: 'Quién eres: tu correo (Gmail) y tu nombre tal como sale en WhatsApp, separados por comas. Opcional.', topics: 'Número de temas',
+  private: 'Modo privado: no guardar títulos ni texto en el resultado (para compartirlo)',
+  pdf: 'Leer también los PDF que haya dentro de las carpetas (por defecto se saltan)',
+  go: 'Crear mi brainprint', clear: 'Vaciar', done: 'Listo', open: 'Abrir mi brainprint', save: 'Descargar HTML',
+  foot: 'Funciona solo en 127.0.0.1. Cierra la terminal (Ctrl+C) para parar y borrar las copias temporales.',
+  copying: (a, b) => `Copiando ${a} de ${b}…`, analysing: 'Analizando… (los buzones grandes pueden tardar unos minutos)',
+  none: 'Añade primero algún archivo o carpeta.', summary: (n, s) => `${n} elementos · ${s}`, filesN: n => `${n} archivos listos`,
+} : {
+  say: 'Drop in what you have written and see the shape of it.',
+  lead: 'Everything is processed on this computer. Nothing is uploaded.',
+  drop: 'Drop your files or folders here',
+  kinds: 'Use them exactly as each app gives them to you: the .zip from ChatGPT, Claude, Notion or Google Takeout, your Obsidian folder, a Gmail .mbox, WhatsApp chats, Word and PDF.',
+  pickFiles: 'Choose files', pickFolder: 'Choose folder',
+  pathsSum: 'Or paste the path of a folder or file (best for very large mailboxes and folders)',
+  title: 'Title', lang: 'Page language', me: 'Who you are: your email (Gmail) and your name as it appears in WhatsApp, separated by commas. Optional.', topics: 'Number of topics',
+  private: 'Private mode: keep titles and text out of the result (safe to share)',
+  pdf: 'Also read the PDFs inside folders (skipped by default)',
+  go: 'Build my brainprint', clear: 'Clear', done: 'Done', open: 'Open my brainprint', save: 'Download HTML',
+  foot: 'Runs on 127.0.0.1 only. Close the terminal (Ctrl+C) to stop and delete the temporary copies.',
+  copying: (a, b) => `Copying ${a} of ${b}…`, analysing: 'Analysing… (large mailboxes can take a few minutes)',
+  none: 'Add a file or folder first.', summary: (n, s) => `${n} items · ${s}`, filesN: n => `${n} files ready`,
+};
+document.querySelectorAll('[data-t]').forEach(el => { el.textContent = T[el.dataset.t]; });
+if (ES) document.getElementById('lang').value = 'es';
+const $ = id => document.getElementById(id);
+const api = (path, opts = {}) => fetch(path, { ...opts, headers: { 'X-Brainprint-Token': TOKEN, ...(opts.headers || {}) } });
+
+const queue = [];          // {file, path}
+const marked = new Set();  // vault roots already flagged
+const KEEP = ['.zip', '.md', '.markdown', '.txt', '.mbox', '.docx', '.pdf'];
+function wanted(path) {
+  const parts = path.split('/'), name = parts[parts.length - 1].toLowerCase();
+  if (parts.slice(0, -1).some(p => p.startsWith('.') || p === 'node_modules')) return false;
+  if (name.endsWith('.json')) return parts.length === 1 || name === 'conversations.json' || name.includes('activ') || name.includes('brainprint');
+  if (name.endsWith('.html')) return name.includes('activ');  // Gemini's MyActivity.html
+  return KEEP.some(ext => name.endsWith(ext));
+}
+function add(file, path) {
+  const vault = path.match(/^([^/]+)\/\.obsidian\//);
+  if (vault && !marked.has(vault[1])) { marked.add(vault[1]); queue.push({ file: new Blob(['{}']), path: `${vault[1]}/.obsidian/brainprint.json`, hidden: true }); }
+  if (wanted(path)) queue.push({ file, path });
+}
+function list() {
+  const shown = queue.filter(q => !q.hidden);
+  const groups = new Map();
+  shown.forEach(q => { const root = q.path.split('/')[0]; const g = groups.get(root) || { n: 0, size: 0 }; g.n++; g.size += q.file.size; groups.set(root, g); });
+  $('files').innerHTML = [...groups].map(([name, g]) => `<div><span>${name.replace(/[<>&]/g, '')}${g.n > 1 ? ` (${g.n})` : ''}</span><span>${g.size < 1e6 ? Math.max(1, Math.round(g.size / 1e3)) + ' KB' : (g.size / 1e6).toFixed(1) + ' MB'}</span></div>`).join('');
+  $('status').className = ''; $('status').textContent = shown.length ? T.filesN(shown.length) : '';
+}
+const readAll = reader => new Promise((res, rej) => reader.readEntries(res, rej));
+async function walk(entry, prefix) {
+  if (entry.isFile) { const file = await new Promise((res, rej) => entry.file(res, rej)); add(file, prefix + file.name); }
+  else if (entry.isDirectory) {
+    const reader = entry.createReader();
+    for (let batch = await readAll(reader); batch.length; batch = await readAll(reader))
+      for (const child of batch) await walk(child, prefix + entry.name + '/');
+  }
+}
+const drop = $('drop');
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', async e => {
+  const entries = [...e.dataTransfer.items].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (entries.length) for (const entry of entries) await walk(entry, '');
+  else [...e.dataTransfer.files].forEach(f => add(f, f.name));
+  list();
+});
+$('pickFiles').onclick = () => $('inFiles').click();
+$('pickFolder').onclick = () => $('inFolder').click();
+['inFiles', 'inFolder'].forEach(id => $(id).addEventListener('change', e => { [...e.target.files].forEach(f => add(f, f.webkitRelativePath || f.name)); e.target.value = ''; list(); }));
+$('clear').onclick = async () => { queue.length = 0; marked.clear(); await api('/reset', { method: 'POST' }); list(); $('done').style.display = 'none'; };
+
+$('go').onclick = async () => {
+  const paths = $('paths').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const status = $('status');
+  status.className = '';
+  if (!queue.length && !paths.length) { status.className = 'err'; status.textContent = T.none; return; }
+  $('go').disabled = true; $('done').style.display = 'none';
+  try {
+    await api('/reset', { method: 'POST' });
+    for (let i = 0; i < queue.length; i++) {
+      status.textContent = T.copying(i + 1, queue.length);
+      const r = await api('/upload?name=' + encodeURIComponent(queue[i].path), { method: 'PUT', body: queue[i].file });
+      if (!r.ok) throw new Error('upload failed: ' + queue[i].path);
+    }
+    status.textContent = T.analysing;
+    const res = await (await api('/build', { method: 'POST', body: JSON.stringify({
+      paths, title: $('title').value, lang: $('lang').value, me: $('me').value,
+      topics: parseInt($('topics').value) || null, private: $('private').checked, pdf: $('pdf').checked,
+    }) })).json();
+    if (!res.ok) throw new Error(res.error);
+    status.textContent = '';
+    $('sum').textContent = T.summary(res.items.toLocaleString(), res.sources.map(s => `${s.name} ${s.count}`).join(' · '));
+    $('notes').textContent = (res.notes || []).join(' ');
+    $('topicList').innerHTML = res.topics.map(t => `<li>${t.name.replace(/[<>&]/g, '')} <span class="muted">· ${t.count}</span></li>`).join('');
+    $('open').href = '/result?t=' + TOKEN; $('save').href = '/result?download=1&t=' + TOKEN;
+    $('done').style.display = 'block';
+    $('done').scrollIntoView({ behavior: 'smooth' });
+  } catch (err) { status.className = 'err'; status.textContent = err.message; }
+  $('go').disabled = false;
+};
+</script>
+</body>
+</html>

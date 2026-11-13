@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brainprint: everything you write, as a 3D brain</title>
+<meta name="description" content="Brainprint turns your AI chats, notes, documents, mail and messages into a 3D brain you can explore. It runs in your browser and uploads nothing. Open source.">
+<meta property="og:title" content="Brainprint: everything you write, as a 3D brain">
+<meta property="og:description" content="Your AI chats, notes, mail and messages as a 3D map of what you think about. Runs in your browser, uploads nothing.">
+<meta property="og:image" content="https://juanmariarodriguez2-png.github.io/brainprint/img/brain.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop stop-color='%236f8cff'/%3E%3Cstop offset='.5' stop-color='%23ff6ad5'/%3E%3Cstop offset='1' stop-color='%23ffb62e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='%23000'/%3E%3Ccircle cx='16' cy='16' r='7' fill='url(%23g)'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="site.css">
+<style>
+  .hero { padding-top: clamp(30px, 6vw, 80px); }
+  .hero .say { font-size: clamp(38px, 7vw, 88px); }
+  .stage { margin-top: clamp(36px, 5vw, 64px); }
+  .stage iframe { display: block; width: 100%; height: min(78vh, 760px); min-height: 460px; border: 1px solid var(--line); border-radius: 18px; background: #000; }
+  .stage figcaption, .views figcaption { color: var(--mute); font-size: 14.5px; margin-top: 12px; }
+  figure { margin: 0; }
+  .after { margin-top: 30px; }
+  .views { display: grid; grid-template-columns: repeat(2, 1fr); gap: 44px 32px; margin-top: 34px; }
+  .views img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; border: 1px solid var(--line); border-radius: 12px; background: #000; }
+  .views figcaption b { color: var(--ink); font-weight: 500; }
+  .own { margin-top: 28px; max-width: var(--text); color: var(--soft); }
+  pre { position: relative; }
+  .copy { all: unset; position: absolute; top: 8px; right: 8px; cursor: pointer; color: var(--mute); font: 13px "Inter", sans-serif;
+    background: #0d0d10; padding: 3px 8px; border-radius: 6px; }
+  .copy:hover { color: var(--ink); }
+  .rows .what pre { margin: 10px 0 0; }
+  @media (max-width: 720px) { .views { grid-template-columns: 1fr; gap: 32px; } .stage iframe { height: 70vh; border-radius: 12px; } .top a.opt { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="./">Brainprint</a>
+    <a class="opt" href="#memory" data-i="navMemory"></a>
+    <a class="opt" href="#reads" data-i="navReads"></a>
+    <a class="opt" href="#how" data-i="navHow"></a>
+    <a href="https://github.com/juanmariarodriguez2-png/brainprint">GitHub</a>
+    <button class="lang" id="lang" type="button"></button>
+  </header>
+
+  <main>
+    <div class="hero">
+      <h1 class="say" data-i="heroSay"></h1>
+      <p class="lead" data-i="heroLead"></p>
+      <div class="actions">
+        <a class="btn" href="app/" id="make" data-i="make"></a>
+        <a class="btn ghost" href="https://github.com/juanmariarodriguez2-png/brainprint" data-i="code"></a>
+      </div>
+      <figure class="stage">
+        <iframe src="demo.html" title="Brainprint demo" loading="lazy"></iframe>
+        <figcaption data-i="demoCap"></figcaption>
+      </figure>
+    </div>
+
+    <section id="memory">
+      <h2 class="say" data-i="agSay"></h2>
+      <p class="lead" data-i="agLead"></p>
+      <ul class="rows after">
+        <li><span class="name"><code>context</code></span><span class="what" data-i="agContext"></span></li>
+        <li><span class="name"><code>recall</code></span><span class="what" data-i="agRecall"></span></li>
+        <li><span class="name"><code>remember</code></span><span class="what" data-i="agRemember"></span></li>
+      </ul>
+      <pre class="after"><code>pip install "brainprint[agent]"
+brainprint brain ~/Vault
+brainprint mcp --brain ~/Vault chatgpt.zip Sent.mbox</code></pre>
+      <p class="note" data-i="agCfg"></p>
+      <pre><code>{
+  "mcpServers": {
+    "brainprint": {
+      "command": "brainprint",
+      "args": ["mcp", "--brain", "/path/to/Vault", "/path/to/chatgpt.zip"]
+    }
+  }
+}</code></pre>
+      <p class="note" data-i="agNote" style="max-width:660px"></p>
+    </section>
+
+    <section id="reads">
+      <h2 class="say" data-i="readsSay"></h2>
+      <ul class="rows after">
+        <li><span class="name">ChatGPT</span><span class="what" data-i="rChatgpt"></span></li>
+        <li><span class="name">Claude</span><span class="what" data-i="rClaude"></span></li>
+        <li><span class="name">Gemini</span><span class="what" data-i="rGemini"></span></li>
+        <li><span class="name">Obsidian</span><span class="what" data-i="rObsidian"></span></li>
+        <li><span class="name">Notion</span><span class="what" data-i="rNotion"></span></li>
+        <li><span class="name">Gmail</span><span class="what" data-i="rGmail"></span></li>
+        <li><span class="name">WhatsApp</span><span class="what" data-i="rWhatsapp"></span></li>
+        <li><span class="name" data-i="rDocsT"></span><span class="what" data-i="rDocs"></span></li>
+        <li><span class="name" data-i="rFolderT"></span><span class="what" data-i="rFolder"></span></li>
+        <li><span class="name" data-i="rLiveT"></span><span class="what" data-i="rLive"></span></li>
+      </ul>
+      <p class="own" data-i="own"></p>
+    </section>
+
+    <section id="views">
+      <h2 class="say" data-i="viewsSay"></h2>
+      <div class="views">
+        <figure><img src="img/brain.jpg" alt="" loading="lazy"><figcaption data-i="vBrain"></figcaption></figure>
+        <figure><img src="img/galaxy.jpg" alt="" loading="lazy"><figcaption data-i="vGalaxy"></figcaption></figure>
+        <figure><img src="img/detail.jpg" alt="" loading="lazy"><figcaption data-i="vLinks"></figcaption></figure>
+        <figure><img src="img/timeline.jpg" alt="" loading="lazy"><figcaption data-i="vTime"></figcaption></figure>
+        <figure><img src="img/waves.jpg" alt="" loading="lazy"><figcaption data-i="vWaves"></figcaption></figure>
+        <figure><img src="img/tables.jpg" alt="" loading="lazy"><figcaption data-i="vTables"></figcaption></figure>
+        <figure><img src="img/review.jpg" alt="" loading="lazy"><figcaption data-i="vReview"></figcaption></figure>
+        <figure><img src="img/numbers.jpg" alt="" loading="lazy"><figcaption data-i="vNumbers"></figcaption></figure>
+      </div>
+    </section>
+
+    <section id="use">
+      <h2 class="say" data-i="useSay"></h2>
+      <ul class="rows after">
+        <li><span class="name" data-i="uWebT"></span><span class="what" data-i="uWeb"></span></li>
+        <li><span class="name" data-i="uPyT"></span><span class="what"><span data-i="uPy"></span>
+<pre><code>git clone https://github.com/juanmariarodriguez2-png/brainprint
+cd brainprint
+pip install .
+brainprint app</code></pre></span></li>
+        <li><span class="name" data-i="uCliT"></span><span class="what"><span data-i="uCli"></span>
+<pre><code>brainprint build chatgpt.zip ~/Vault Sent.mbox --me you@gmail.com -o my_brain.html</code></pre></span></li>
+        <li><span class="name" data-i="uLiveT"></span><span class="what"><span data-i="uLive"></span>
+<pre><code>brainprint sync --init ~/Vault ~/Downloads/brainprint-capture.json -o my_brain.html
+brainprint sync --watch</code></pre></span></li>
+        <li><span class="name" data-i="uBackT"></span><span class="what"><span data-i="uBack"></span>
+<pre><code>brainprint build chatgpt.zip ~/Vault --vault ~/Vault</code></pre></span></li>
+      </ul>
+    </section>
+
+    <section id="privacy">
+      <h2 class="say" data-i="prSay"></h2>
+      <ul class="rows after">
+        <li><span class="name" data-i="p1T"></span><span class="what" data-i="p1"></span></li>
+        <li><span class="name" data-i="p2T"></span><span class="what" data-i="p2"></span></li>
+        <li><span class="name" data-i="p3T"></span><span class="what" data-i="p3"></span></li>
+        <li><span class="name" data-i="p4T"></span><span class="what" data-i="p4"></span></li>
+      </ul>
+    </section>
+
+    <section id="how">
+      <h2 class="say" data-i="howSay"></h2>
+      <ul class="rows after">
+        <li><span class="name" data-i="h1T"></span><span class="what" data-i="h1"></span></li>
+        <li><span class="name" data-i="h2T"></span><span class="what" data-i="h2"></span></li>
+        <li><span class="name" data-i="h3T"></span><span class="what" data-i="h3"></span></li>
+        <li><span class="name" data-i="h4T"></span><span class="what" data-i="h4"></span></li>
+      </ul>
+      <div class="actions"><a class="btn" href="app/" data-i="make"></a></div>
+    </section>
+  </main>
+
+  <footer class="end">
+    <span data-i="foot1"></span>
+    <a href="https://github.com/juanmariarodriguez2-png/brainprint">GitHub</a>
+    <span data-i="foot2"></span>
+  </footer>
+</div>
+
+<script>
+const TXT = {
+  en: {
+    lang: '<b>EN</b> / ES', navMemory: 'Memory for your AI', navReads: 'What it reads', navHow: 'How it works', copy: 'Copy', copied: 'Copied',
+    title: 'Brainprint: everything you write, as a 3D brain',
+    heroSay: 'Everything you write has a shape.',
+    heroLead: 'Brainprint turns your AI chats, your notes, your mail and your messages into a 3D brain you can walk through, and into a memory your AI assistants plug into so they never start from zero. It all stays on your computer.',
+    make: 'Make mine', code: 'Read the code',
+    demoCap: 'A live example with invented data. Drag to turn it, click a dot to open it, press Galaxy, or press play to watch 18 months grow.',
+    readsSay: 'It reads what you already have, the way each app hands it over.',
+    rChatgpt: 'The export .zip. Your side of every conversation.',
+    rClaude: 'The export .zip. Your side of every conversation.',
+    rGemini: 'The Gemini activity from Google Takeout. <small>Google lists single prompts, so chats are rebuilt from the time between them.</small>',
+    rObsidian: 'Your vault folder, as it is: dates, #tags and [[links]] included.',
+    rNotion: 'The “Markdown &amp; CSV” export. <small>With the Notion API (Python version) every page gets its real creation date.</small>',
+    rGmail: 'A Takeout mailbox. Only the mail you sent, without quoted replies or signatures.',
+    rWhatsapp: 'Exported chats. Only the messages you sent, one point per chat and day.',
+    rDocsT: 'Word and PDF', rDocs: 'Essays, reports, your thesis. <small>These are read whole, so add the ones you wrote.</small>',
+    rFolderT: 'Any notes folder', rFolder: 'Markdown or plain text from any app: journals, drafts, class notes.',
+    rLiveT: 'Live capture', rLive: 'A small Chrome extension keeps what you type into ChatGPT, Claude, Gemini, Copilot and Perplexity, in your browser only, so you never have to export again.',
+    own: 'Only your own words go in. The AI’s answers and other people’s messages are left out, so the map shows what you care about and not what you were told.',
+    viewsSay: 'One record, eight ways to look at it.',
+    vBrain: '<b>Brain.</b> Each point is something you wrote, coloured by topic. Discs are AI chats, diamonds are notes and documents, rings are messages.',
+    vGalaxy: '<b>Galaxy.</b> The same points as a spiral: one arm per topic, old ideas at the core, new ones at the rim. Press play and it grows month by month.',
+    vLinks: '<b>Connections.</b> Open a point to read it and see what it relates to in your other apps: the note that matches a chat from months ago.',
+    vTime: '<b>Timeline.</b> Everything in order, filtered by topic, app or search.',
+    vWaves: '<b>Waves.</b> How each interest rises and falls over time.',
+    vTables: '<b>Tables.</b> Cross any two things: topic by app, weekday by time of day.',
+    vReview: '<b>Review.</b> What is growing, what you dropped, where topics meet, and a summary of you to paste into your AI.',
+    vNumbers: '<b>Numbers.</b> Words written, longest streak, the hours you write at.',
+    useSay: 'Use it without installing anything, or install it and let it keep itself up to date.',
+    uWebT: 'In the browser', uWeb: 'Open <a href="app/">the app</a>, drop your files, get your brain. The analysis runs in the tab, so it also works offline. You can download the result as one HTML file.',
+    uPyT: 'On your computer', uPy: 'The Python version does the same with scikit-learn and has no size limit. You need Python 3.10 or later.',
+    uCliT: 'From the terminal', uCli: 'Pass any mix of files and folders.',
+    uLiveT: 'Always up to date', uLive: 'Save your sources once; after that it rebuilds whenever a note changes or the extension saves new messages.',
+    uBackT: 'Back into your notes', uBack: 'Write your topics and chats into Obsidian as linked notes. Notes you already have are linked, never copied.',
+    agSay: 'Plug your AI into it and stop explaining who you are.',
+    agLead: 'Every new chat starts blank, so you paste the same background again and again. Brainprint is a second brain your assistants share: a small server on your computer that Claude Desktop, Claude Code, Cursor and other MCP clients connect to. What one assistant learns today, the next one already knows.',
+    agContext: 'A short briefing at the start of a conversation: your “About me” note, what you asked assistants to keep in mind, what you are writing about lately. A few hundred words instead of a pasted prompt.',
+    agRecall: 'The assistant looks up only what it needs, across your notes, past chats, mail and memories, and gets excerpts rather than whole files.',
+    agRemember: 'A decision, a preference, a fact about a project: saved as a Markdown note in <code>Brainprint/Memory</code> inside your Obsidian vault, where you can read it, edit it or delete it.',
+    agCfg: 'In Claude Desktop, add it under Settings › Developer › Edit config:',
+    agNote: 'Your “About me” note is yours: assistants read it and never change it. Forgetting a memory archives the note; it does not delete it. What an assistant reads is sent to the AI model it runs on, like anything else you show it. For an assistant that cannot run a local server, <code>brainprint brain ~/Vault --context</code> prints the briefing to paste.',
+    prSay: 'Your words do not leave your computer.',
+    p1T: 'Nothing is uploaded', p1: 'No account, no server, no tracking. Once the web app has loaded you can switch off your wifi and it still builds your brain. The result is a single file that opens offline.',
+    p2T: 'Private mode', p2: 'One switch leaves every title and every word out of the result, so you can share the map without sharing what is in it.',
+    p3T: 'Your data, your call', p3: 'If you ever want to hand your writing to a researcher, <code>--dataset</code> writes it as a file with emails, links and phone numbers masked. It is masking, not anonymity: read it first. Brainprint sells nothing and brokers nothing.',
+    p4T: 'Open source', p4: 'MIT licence. The tests check that the AI’s answers, other people’s mail and private-mode text never reach the output.',
+    howSay: 'Classic machine learning, with nothing hidden.',
+    h1T: 'Topics', h1: 'TF-IDF with word pairs, reduced with latent semantic analysis and grouped with k-means. The number of topics is chosen by silhouette score. English and Spanish.',
+    h2T: 'Connections', h2: 'Nearest neighbours by cosine similarity, plus the links you wrote yourself. Items nearly as close to another topic as to their own become bridges.',
+    h3T: 'Shapes', h3: 'The brain is a volume built from ellipsoids, with topic centres spread by farthest-point sampling. The galaxy puts time on the radius and topics on the arms. A three.js shader morphs one into the other.',
+    h4T: 'Two engines', h4: 'Python uses scikit-learn. The browser runs a dependency-free JavaScript port: its own TF-IDF, randomized SVD and k-means. A test feeds both the same files and requires the same numbers.',
+    foot1: 'Brainprint is open source (MIT), built by Juan Rodríguez.', foot2: 'No cookies, no analytics.',
+  },
+  es: {
+    lang: 'EN / <b>ES</b>', navMemory: 'Memoria para tu IA', navReads: 'Qué lee', navHow: 'Cómo funciona', copy: 'Copiar', copied: 'Copiado',
+    title: 'Brainprint: todo lo que escribes, en un cerebro 3D',
+    heroSay: 'Todo lo que escribes tiene una forma.',
+    heroLead: 'Brainprint convierte tus chats con IA, tus notas, tus correos y tus mensajes en un cerebro 3D que puedes recorrer, y en una memoria a la que se conectan tus asistentes de IA para no empezar nunca de cero. Todo se queda en tu ordenador.',
+    make: 'Crear el mío', code: 'Leer el código',
+    demoCap: 'Un ejemplo en vivo con datos inventados. Arrastra para girarlo, pulsa un punto para abrirlo, prueba Galaxia o dale a reproducir para ver crecer 18 meses.',
+    readsSay: 'Lee lo que ya tienes, tal como te lo da cada app.',
+    rChatgpt: 'El .zip de exportación. Tu parte de cada conversación.',
+    rClaude: 'El .zip de exportación. Tu parte de cada conversación.',
+    rGemini: 'La actividad de Gemini de Google Takeout. <small>Google guarda cada pregunta suelta, así que los chats se reconstruyen por el tiempo entre ellas.</small>',
+    rObsidian: 'La carpeta de tu bóveda, tal cual: con fechas, #etiquetas y [[enlaces]].',
+    rNotion: 'La exportación «Markdown y CSV». <small>Con la API de Notion (versión en Python) cada página sale con su fecha real de creación.</small>',
+    rGmail: 'Un buzón de Takeout. Solo el correo que enviaste, sin respuestas citadas ni firmas.',
+    rWhatsapp: 'Chats exportados. Solo los mensajes que enviaste tú, un punto por chat y día.',
+    rDocsT: 'Word y PDF', rDocs: 'Trabajos, informes, tu TFG. <small>Estos se leen enteros, así que añade los que hayas escrito tú.</small>',
+    rFolderT: 'Cualquier carpeta de notas', rFolder: 'Markdown o texto de cualquier app: diarios, borradores, apuntes.',
+    rLiveT: 'Captura en vivo', rLive: 'Una pequeña extensión de Chrome guarda lo que escribes en ChatGPT, Claude, Gemini, Copilot y Perplexity, solo en tu navegador, para que no tengas que exportar nunca más.',
+    own: 'Solo entran tus propias palabras. Las respuestas de la IA y los mensajes de otras personas se quedan fuera, así que el mapa enseña lo que te importa a ti y no lo que te contaron.',
+    viewsSay: 'Un mismo registro, mirado de ocho maneras.',
+    vBrain: '<b>Cerebro.</b> Cada punto es algo que escribiste, coloreado por tema. Los discos son chats con IA, los rombos notas y documentos, los anillos mensajes.',
+    vGalaxy: '<b>Galaxia.</b> Los mismos puntos en espiral: un brazo por tema, las ideas antiguas en el núcleo y las nuevas en el borde. Dale a reproducir y crece mes a mes.',
+    vLinks: '<b>Conexiones.</b> Abre un punto para leerlo y ver con qué se relaciona en tus otras apps: la nota que encaja con un chat de hace meses.',
+    vTime: '<b>Cronología.</b> Todo en orden, filtrado por tema, app o búsqueda.',
+    vWaves: '<b>Olas.</b> Cómo sube y baja cada interés con el tiempo.',
+    vTables: '<b>Tablas.</b> Cruza dos cosas cualesquiera: tema por app, día de la semana por momento del día.',
+    vReview: '<b>Repaso.</b> Qué crece, qué has dejado, dónde se tocan los temas y un resumen de ti para pegar en tu IA.',
+    vNumbers: '<b>Números.</b> Palabras escritas, tu racha más larga, las horas a las que escribes.',
+    useSay: 'Úsalo sin instalar nada, o instálalo y deja que se ponga al día solo.',
+    uWebT: 'En el navegador', uWeb: 'Abre <a href="app/">la app</a>, suelta tus archivos y sale tu cerebro. El análisis se hace en la pestaña, así que también funciona sin conexión. Puedes descargar el resultado como un único HTML.',
+    uPyT: 'En tu ordenador', uPy: 'La versión en Python hace lo mismo con scikit-learn y no tiene límite de tamaño. Necesitas Python 3.10 o posterior.',
+    uCliT: 'Desde la terminal', uCli: 'Pasa cualquier mezcla de archivos y carpetas.',
+    uLiveT: 'Siempre al día', uLive: 'Guarda tus fuentes una vez; a partir de ahí se rehace cada vez que cambia una nota o la extensión guarda mensajes nuevos.',
+    uBackT: 'De vuelta a tus notas', uBack: 'Escribe tus temas y chats en Obsidian como notas enlazadas. Las notas que ya tienes se enlazan, nunca se copian.',
+    agSay: 'Conéctale tu IA y deja de explicarle quién eres.',
+    agLead: 'Cada chat nuevo empieza en blanco, así que pegas el mismo contexto una y otra vez. Brainprint es un segundo cerebro que comparten tus asistentes: un pequeño servidor en tu ordenador al que se conectan Claude Desktop, Claude Code, Cursor y otros clientes MCP. Lo que un asistente aprende hoy, el siguiente ya lo sabe.',
+    agContext: 'Un resumen corto al empezar la conversación: tu nota «Sobre mí», lo que has pedido a los asistentes que tengan presente y de qué escribes últimamente. Unos cientos de palabras en lugar de un prompt pegado.',
+    agRecall: 'El asistente busca solo lo que necesita entre tus notas, chats antiguos, correos y recuerdos, y recibe fragmentos en vez de archivos enteros.',
+    agRemember: 'Una decisión, una preferencia, un dato de un proyecto: se guarda como nota Markdown en <code>Brainprint/Memory</code>, dentro de tu bóveda de Obsidian, donde puedes leerla, editarla o borrarla.',
+    agCfg: 'En Claude Desktop, añádelo en Ajustes › Desarrollador › Editar configuración:',
+    agNote: 'Tu nota «Sobre mí» es tuya: los asistentes la leen y nunca la cambian. Olvidar un recuerdo archiva la nota; no la borra. Lo que un asistente lee se envía al modelo de IA con el que funciona, igual que cualquier otra cosa que le enseñes. Para un asistente que no puede ejecutar un servidor local, <code>brainprint brain ~/Vault --context</code> imprime el resumen para pegarlo.',
+    prSay: 'Tus palabras no salen de tu ordenador.',
+    p1T: 'No se sube nada', p1: 'Sin cuenta, sin servidor, sin rastreo. Una vez cargada la app web, puedes desconectar el wifi y sigue construyendo tu cerebro. El resultado es un único archivo que se abre sin conexión.',
+    p2T: 'Modo privado', p2: 'Un interruptor deja fuera todos los títulos y todo el texto, para que puedas compartir el mapa sin compartir lo que contiene.',
+    p3T: 'Tus datos, tu decisión', p3: 'Si algún día quieres ceder lo que has escrito a un investigador, <code>--dataset</code> lo guarda en un archivo con correos, enlaces y teléfonos tapados. Es tapar, no anonimizar: léelo antes. Brainprint no vende nada ni hace de intermediario.',
+    p4T: 'Código abierto', p4: 'Licencia MIT. Los tests comprueban que las respuestas de la IA, el correo ajeno y el texto en modo privado nunca llegan al resultado.',
+    howSay: 'Machine learning clásico, sin nada escondido.',
+    h1T: 'Temas', h1: 'TF-IDF con pares de palabras, reducido con análisis semántico latente y agrupado con k-means. El número de temas se elige con el coeficiente de silueta. En español y en inglés.',
+    h2T: 'Conexiones', h2: 'Vecinos más cercanos por similitud del coseno, más los enlaces que escribiste tú. Lo que queda casi tan cerca de otro tema como del suyo se convierte en puente.',
+    h3T: 'Formas', h3: 'El cerebro es un volumen hecho de elipsoides, con los centros de los temas repartidos por farthest-point sampling. La galaxia pone el tiempo en el radio y los temas en los brazos. Un shader de three.js transforma una en otra.',
+    h4T: 'Dos motores', h4: 'Python usa scikit-learn. El navegador ejecuta una versión en JavaScript sin dependencias: su propio TF-IDF, SVD aleatorizado y k-means. Un test les da los mismos archivos a los dos y exige los mismos números.',
+    foot1: 'Brainprint es código abierto (MIT), creado por Juan Rodríguez.', foot2: 'Sin cookies ni analítica.',
+  },
+};
+let lang = new URLSearchParams(location.search).get('lang') || (navigator.language || 'en').slice(0, 2);
+lang = lang === 'es' ? 'es' : 'en';
+function apply() {
+  const T = TXT[lang];
+  document.documentElement.lang = lang;
+  document.title = T.title;
+  document.querySelectorAll('[data-i]').forEach(el => { el.innerHTML = el.classList.contains('say') ? `<span>${T[el.dataset.i]}</span>` : T[el.dataset.i]; });
+  document.getElementById('lang').innerHTML = T.lang;
+  document.querySelectorAll('.copy').forEach(b => { b.textContent = T.copy; });
+  document.querySelectorAll('a[href^="app/"]').forEach(a => { a.href = 'app/' + (lang === 'es' ? '?lang=es' : ''); });
+  const demo = document.querySelector('.stage iframe'), src = lang === 'es' ? 'demo_es.html' : 'demo.html';
+  if (demo.getAttribute('src') !== src) demo.setAttribute('src', src);
+}
+document.querySelectorAll('pre').forEach(pre => {
+  const b = document.createElement('button');
+  b.className = 'copy'; b.type = 'button';
+  b.onclick = () => navigator.clipboard.writeText(pre.querySelector('code').textContent.trim()).then(() => {
+    b.textContent = TXT[lang].copied; setTimeout(() => { b.textContent = TXT[lang].copy; }, 1300);
+  });
+  pre.appendChild(b);
+});
+document.getElementById('lang').onclick = () => { lang = lang === 'en' ? 'es' : 'en'; apply(); };
+apply();
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+:root { --spectrum: linear-gradient(90deg, #6f8cff 0%, #a77bff 22%, #ff6ad5 45%, #ff5d7a 62%, #ff8a3c 82%, #ffb62e 100%); }
+* { box-sizing: border-box; }
+body { margin: 0; width: 330px; padding: 20px 20px 16px; background: #000; color: #f4f4f6;
+  font: 400 14px/1.45 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; }
+h1 { margin: 0 0 6px; font-size: 24px; line-height: 1.12; font-weight: 600; letter-spacing: -0.025em; width: fit-content;
+  background: var(--spectrum); -webkit-background-clip: text; background-clip: text; color: transparent; }
+p { margin: 0; color: #8d8d96; font-size: 13px; }
+ul { list-style: none; margin: 16px 0 0; padding: 0; border-top: 1px solid #232328; }
+li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #232328; }
+li span:last-child { color: #8d8d96; font-variant-numeric: tabular-nums; }
+.switch { display: flex; gap: 10px; align-items: center; margin: 16px 0; cursor: pointer; }
+.switch input { width: 16px; height: 16px; accent-color: #a77bff; }
+.actions { display: flex; flex-direction: column; gap: 8px; }
+button { font: 500 13.5px/1 inherit; font-family: inherit; cursor: pointer; border-radius: 999px; padding: 11px 14px; flex: 1;
+  background: none; color: #f4f4f6; border: 1px solid #3a3a42; }
+button.main { background: #f4f4f6; color: #000; border-color: #f4f4f6; }
+button.quiet { border: 0; padding: 12px 0 2px; color: #8d8d96; text-decoration: underline; text-underline-offset: 3px; width: 100%; }
+button.quiet.sure { color: #ff8a9a; }
+button:disabled { opacity: 0.4; cursor: default; }
+button:focus-visible, input:focus-visible { outline: 2px solid #a77bff; outline-offset: 2px; }
+#foot { margin-top: 10px; font-size: 12px; }

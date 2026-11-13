@@ -1,0 +1,30 @@
+# your private data never goes to GitHub
+*.zip
+*.mbox
+conversations.json
+MyActivity.json
+MyActivity.html
+brainprint-capture.json
+brainprint.json
+*.jsonl
+data/
+out/
+brainprint.html
+*.html
+!brainprint/templates/*.html
+!docs/*.html
+!docs/app/*.html
+!extension/*.html
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# node (only used to run the tests)
+node_modules/

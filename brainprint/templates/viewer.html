@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="__LANG__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__ · Brainprint</title>
+<style>
+  @font-face { font-family: "Inter"; font-weight: 100 900; font-display: swap;
+    src: url(data:font/woff2;base64,__FONT__) format("woff2"); }
+  :root {
+    --bg: #000; --panel: rgba(0, 0, 0, 0.74); --line: rgba(255, 255, 255, 0.13);
+    --text: #f4f4f6; --muted: #8d8d96; --accent: #a77bff;
+    --spectrum: linear-gradient(90deg, #6f8cff 0%, #a77bff 22%, #ff6ad5 45%, #ff5d7a 62%, #ff8a3c 82%, #ffb62e 100%);
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .spectrum { background: var(--spectrum); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; color: var(--text); overflow: hidden; background: #000; }
+  button, input, select { font: inherit; color: inherit; }
+  header { position: fixed; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 14px;
+    padding: 14px 20px; z-index: 6; pointer-events: none; }
+  header > * { pointer-events: auto; }
+  .brand { min-width: 0; margin-right: auto; }
+  .brand h1 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -0.015em; width: fit-content; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .badge { margin-left: 8px; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 500; letter-spacing: 0; color: #000; background: #f4f4f6;
+    -webkit-text-fill-color: #000; vertical-align: middle; }
+  nav, .pill { display: flex; gap: 2px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 99px; padding: 4px; backdrop-filter: blur(10px); }
+  nav button, .pill button { all: unset; cursor: pointer; padding: 6px 13px; border-radius: 99px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+  nav button.on, .pill button.on { background: #f4f4f6; color: #000; }
+  .tools { display: flex; gap: 8px; margin-left: auto; }
+  .tools input, .tools select, .ctl select { background: var(--panel); border: 1px solid var(--line); border-radius: 99px;
+    padding: 7px 13px; font-size: 13px; outline: none; backdrop-filter: blur(10px); }
+  .tools input { width: 170px; }
+  .tools input:focus { border-color: var(--accent); }
+  select option { background: #000; }
+
+  .view { position: fixed; inset: 0; display: none; }
+  .view.on { display: block; }
+  #scene { position: fixed; inset: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; backdrop-filter: blur(10px); }
+  h3 { margin: 0 0 8px; font-size: 12px; font-weight: 500; color: var(--muted); }
+
+  #side { position: fixed; left: 16px; top: 78px; width: 240px; max-height: calc(100% - 160px); overflow: auto; padding: 12px; z-index: 4; }
+  .topic { display: grid; grid-template-columns: 12px 1fr auto; gap: 8px; align-items: center; padding: 5px 6px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .topic:hover, .row:hover, .rel:hover { background: rgba(255, 255, 255, 0.06); }
+  .topic.dim, .chip.off { opacity: 0.35; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 8px currentColor; flex: none; }
+  .topic .bar { grid-column: 2 / 4; height: 3px; border-radius: 3px; opacity: 0.7; }
+  .n { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 99px; font-size: 12px;
+    border: 1px solid var(--line); cursor: pointer; user-select: none; white-space: nowrap; }
+  .chip.static { cursor: default; }
+  .shape { width: 9px; height: 9px; background: currentColor; flex: none; }
+  .shape.chat { border-radius: 50%; } .shape.note { transform: rotate(45deg) scale(0.82); }
+  .shape.message { border-radius: 50%; background: none; border: 2px solid currentColor; }
+
+  #bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
+    padding: 6px 10px; z-index: 4; border-radius: 99px; max-width: calc(100% - 20px); }
+  #bar .pill { border: 0; background: none; padding: 0; backdrop-filter: none; }
+  #bar .sep { width: 1px; height: 20px; background: var(--line); }
+  #play { all: unset; cursor: pointer; width: 28px; height: 28px; border-radius: 50%; background: rgba(255, 255, 255, 0.11); text-align: center; line-height: 28px; font-size: 12px; }
+  #cut { width: 180px; accent-color: var(--accent); }
+  #cutLabel { font-size: 12px; color: var(--muted); min-width: 120px; font-variant-numeric: tabular-nums; }
+  #hint { position: fixed; left: 50%; bottom: 62px; transform: translateX(-50%); color: var(--muted); font-size: 11px; z-index: 3; text-align: center; white-space: nowrap; }
+
+  #detail { position: fixed; right: 16px; top: 78px; width: 310px; max-height: calc(100% - 160px); overflow: auto; padding: 14px; z-index: 5; display: none; }
+  #detail.on { display: block; }
+  #detail h2 { margin: 8px 0 8px; font-size: 16px; line-height: 1.3; }
+  #detail .close { all: unset; cursor: pointer; float: right; color: var(--muted); font-size: 18px; line-height: 1; padding: 2px 6px; }
+  #detail .meta, .muted { color: var(--muted); font-size: 12px; }
+  #detail blockquote { margin: 10px 0; padding: 8px 10px; border-left: 2px solid var(--line); color: #c9c9d1; font-size: 12.5px; line-height: 1.45; }
+  .rel { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; padding: 6px; border-radius: 8px; cursor: pointer; font-size: 12.5px; }
+  .rel small { color: var(--muted); }
+  #tip { position: fixed; pointer-events: none; z-index: 7; background: rgba(0, 0, 0, 0.94); border: 1px solid var(--line);
+    border-radius: 10px; padding: 8px 10px; font-size: 12px; max-width: 260px; display: none; }
+  #tip b { display: block; font-size: 13px; margin-bottom: 2px; }
+  .label3d { position: fixed; z-index: 3; font-size: 12px; font-weight: 600; pointer-events: none; transform: translate(-50%, -50%);
+    text-shadow: 0 0 6px #000, 0 0 12px #000; white-space: nowrap; }
+  #sideToggle { display: none; }
+
+  .page { position: fixed; inset: 72px 0 0 0; overflow: auto; padding: 8px 28px 48px; }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  .page h2 { font-size: 30px; line-height: 1.15; margin: 10px 0 6px; font-weight: 600; letter-spacing: -0.02em; width: fit-content; max-width: 100%;
+    background: var(--spectrum); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .page .sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .ctl { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 0 0 14px; font-size: 12px; color: var(--muted); }
+  .ctl label { display: flex; align-items: center; gap: 8px; }
+  .ctl input[type=range] { accent-color: var(--accent); }
+  #wavesSvg { width: 100%; display: block; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .card { padding: 14px 16px; }
+  .card .big { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .card .small { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .wide { grid-column: span 2; } .full { grid-column: 1 / -1; }
+  #heat { display: grid; grid-template-columns: 34px repeat(24, 1fr); gap: 3px; font-size: 10px; color: var(--muted); }
+  #heat div.c { aspect-ratio: 1; border-radius: 3px; }
+  .share { display: grid; grid-template-columns: 190px 1fr 56px; gap: 10px; align-items: center; font-size: 13px; margin: 6px 0; }
+  .share .track { height: 8px; background: rgba(255, 255, 255, 0.06); border-radius: 8px; overflow: hidden; }
+  .share .fill { height: 100%; border-radius: 8px; }
+  .share .fill.all { background: var(--spectrum); }
+  footer { color: var(--muted); font-size: 11px; text-align: center; margin-top: 26px; }
+
+  #tl { display: grid; grid-template-columns: 190px 1fr; gap: 22px; align-items: start; }
+  #tlMonths { position: sticky; top: 0; max-height: calc(100vh - 190px); overflow: auto; padding: 10px; }
+  .mo { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 5px 8px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .mo:hover { background: rgba(255, 255, 255, 0.06); }
+  .mo i { grid-column: 1 / 3; height: 2px; border-radius: 2px; background: var(--spectrum); opacity: 0.8; }
+  .tlHead { font-size: 13px; font-weight: 600; margin: 18px 0 6px; color: var(--muted); }
+  .row { display: grid; grid-template-columns: 10px 1fr auto auto; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 8px; cursor: pointer; font-size: 13.5px; }
+  .row .ttl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .more { all: unset; cursor: pointer; margin: 16px 0; padding: 8px 16px; border-radius: 99px; border: 1px solid var(--line); font-size: 13px; }
+
+  table.pv { border-collapse: separate; border-spacing: 3px; font-size: 12.5px; }
+  table.pv th { font-weight: 500; color: var(--muted); text-align: right; padding: 4px 8px; white-space: nowrap; }
+  table.pv thead th { text-align: center; }
+  table.pv td { text-align: center; padding: 6px 10px; border-radius: 5px; min-width: 44px; font-variant-numeric: tabular-nums; }
+  table.pv .tot { color: var(--muted); }
+  .scroll { overflow: auto; padding-bottom: 8px; }
+
+  .rv { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .rv .card p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.45; }
+  .rv .line { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13.5px; }
+  .rv .line b { font-weight: 600; }
+  .rv .go { cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+  .arrow { font-variant-numeric: tabular-nums; color: var(--muted); margin-left: auto; white-space: nowrap; }
+  pre#ctx { white-space: pre-wrap; font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace; color: #c9c9d1; margin: 0 0 10px;
+    max-height: 260px; overflow: auto; padding: 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); }
+  .btn { all: unset; cursor: pointer; padding: 7px 14px; border-radius: 99px; background: #f4f4f6; color: #000; font-size: 13px; font-weight: 600; }
+  button:focus-visible, input:focus-visible, select:focus-visible, .chip:focus-visible { outline: 2px solid #a77bff; outline-offset: 2px; }
+
+  @media (max-width: 900px) {
+    header { flex-wrap: wrap; padding: 10px 12px; gap: 8px; }
+    nav { order: 3; width: 100%; overflow-x: auto; }
+    .tools input { width: 120px; }
+    #side { top: auto; bottom: 110px; left: 10px; right: 10px; width: auto; max-height: 34vh; display: none; }
+    #side.on { display: block; }
+    #sideToggle { display: block; position: fixed; left: 10px; bottom: 66px; z-index: 5; }
+    #detail { top: auto; bottom: 110px; left: 10px; right: 10px; width: auto; max-height: 42vh; }
+    #bar { bottom: 10px; gap: 6px; padding: 5px 8px; }
+    #cut { width: 110px; } #cutLabel, #synWrap, #synSep { display: none; }
+    #hint { display: none; }
+    .page { inset: 128px 0 0 0; padding: 8px 14px 40px; }
+    .grid { grid-template-columns: repeat(2, 1fr); } .rv { grid-template-columns: 1fr; }
+    .wide, .full { grid-column: 1 / -1; }
+    .share { grid-template-columns: 120px 1fr 44px; }
+    #tl { grid-template-columns: 1fr; } #tlMonths { display: none; }
+    .row { grid-template-columns: 10px 1fr auto; } .row .src { display: none; }
+    .label3d { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><h1 id="title" class="spectrum"></h1><p id="subtitle"></p></div>
+  <nav id="tabs"></nav>
+  <div class="tools">
+    <input id="q" type="search" autocomplete="off">
+    <select id="palette" aria-label="palette">
+      <option value="spectrum">Spectrum</option><option value="aurora">Aurora</option><option value="lava">Lava</option>
+      <option value="ocean">Ocean</option><option value="mono">Mono</option>
+    </select>
+  </div>
+</header>
+
+<section class="view on" id="view-brain">
+  <div id="scene"></div>
+  <aside id="side" class="panel">
+    <h3 id="hTopics"></h3><div id="topics"></div>
+    <h3 id="hSources" style="margin-top:14px"></h3><div id="sources" class="chips"></div>
+  </aside>
+  <button id="sideToggle" class="chip panel"></button>
+  <div id="labels"></div>
+  <div id="hint"></div>
+  <div id="bar" class="panel">
+    <div class="pill" id="layout"><button data-m="0" class="on"></button><button data-m="1"></button></div>
+    <span class="sep"></span>
+    <div class="pill" id="synWrap"><button id="syn"></button></div>
+    <span class="sep" id="synSep"></span>
+    <button id="play" aria-label="time-lapse">▶</button>
+    <input id="cut" type="range" min="0" max="1000" value="1000">
+    <span id="cutLabel"></span>
+  </div>
+  <aside id="detail" class="panel"></aside>
+  <div id="tip"></div>
+</section>
+
+<section class="view" id="view-timeline"><div class="page"><div class="wrap">
+  <h2 id="tlTitle"></h2><p class="sub" id="tlSub"></p>
+  <div id="tl"><aside id="tlMonths" class="panel"></aside><div id="tlList"></div></div>
+</div></div></section>
+
+<section class="view" id="view-waves"><div class="page"><div class="wrap">
+  <h2 id="wvTitle"></h2><p class="sub" id="wvSub"></p>
+  <div class="ctl">
+    <label><span id="wvSmoothL"></span><input id="wvSmooth" type="range" min="0" max="4" value="1"></label>
+    <label><span id="wvScaleL"></span><select id="wvScale"></select></label>
+  </div>
+  <svg id="wavesSvg"></svg>
+</div></div></section>
+
+<section class="view" id="view-tables"><div class="page"><div class="wrap">
+  <h2 id="tbTitle"></h2><p class="sub" id="tbSub"></p>
+  <div class="ctl">
+    <label><span id="tbRowsL"></span><select id="tbRows"></select></label>
+    <label><span id="tbColsL"></span><select id="tbCols"></select></label>
+    <label><span id="tbMeasL"></span><select id="tbMeas"></select></label>
+  </div>
+  <div class="scroll" id="tbOut"></div>
+</div></div></section>
+
+<section class="view" id="view-review"><div class="page"><div class="wrap">
+  <h2 id="rvTitle"></h2><p class="sub" id="rvSub"></p>
+  <div class="rv" id="rvCards"></div>
+</div></div></section>
+
+<section class="view" id="view-numbers"><div class="page"><div class="wrap">
+  <h2 id="nbTitle"></h2><p class="sub" id="nbSub"></p>
+  <div class="grid" id="cards"></div>
+  <footer id="footer"></footer>
+</div></div></section>
+
+<script id="bp-data" type="application/json">__DATA__</script>
+<script id="three-src" type="text/plain">__THREE__</script>
+<script type="module">
+const DATA = JSON.parse(document.getElementById('bp-data').textContent);
+const LANG = document.documentElement.lang === 'es' ? 'es' : 'en';
+const L = {
+  en: {
+    tabs: { brain: 'Brain', timeline: 'Timeline', waves: 'Waves', tables: 'Tables', review: 'Review', numbers: 'Numbers' },
+    sub: (n, a, b) => `${n} items · ${a} → ${b}`, private: 'private', search: 'Search…',
+    topics: 'Topics', sources: 'Sources', brain: 'Brain', galaxy: 'Galaxy', synapses: 'Synapses',
+    hint: 'Drag to rotate · scroll to zoom · click a dot to open it',
+    kinds: ['AI chat', 'note', 'message'], kindsPl: ['AI chats', 'notes & docs', 'messages'],
+    hidden: 'Hidden (private mode)', nodate: 'no date', words: 'words', msgs: 'messages', sent: 'sent',
+    related: 'Related', linked: 'linked', similar: 'similar', none: 'Nothing related found.',
+    privateNote: 'Private mode: titles and text are not in this file.', soFar: 'so far',
+    tlTitle: 'Timeline', tlSub: 'Everything you wrote, newest first. Click an entry to find it in the brain.',
+    showMore: 'Show more', noMatch: 'Nothing matches the current filters.',
+    wvTitle: 'How your interests rise and fall', wvSub: 'Items per month for each topic.',
+    smooth: 'Smoothing', scale: 'Scale', shared: 'Shared', own: 'Each topic its own',
+    tbTitle: 'Table builder', tbSub: 'Cross any two properties of your record.',
+    rows: 'Rows', cols: 'Columns', measure: 'Measure', total: 'Total',
+    dims: { topic: 'Topic', source: 'Source', kind: 'Type', year: 'Year', month: 'Month', weekday: 'Weekday', daypart: 'Time of day' },
+    meas: { items: 'Items', words: 'Words you wrote', writes: 'Messages you sent' },
+    dayparts: ['Night (0–6)', 'Morning (6–12)', 'Afternoon (12–18)', 'Evening (18–24)'],
+    rvTitle: 'Review', rvSub: d => `What changed in your thinking, as of ${d}.`,
+    rising: 'Heating up', fading: 'Cooling down', vs: d => `last ${d} days vs the ${d} before`,
+    dormant: 'Left behind', dormantRow: (d, n) => `nothing since ${d} (${n} days)`,
+    newest: 'Newest interest', since: m => `first appeared in ${m}`,
+    bridges: 'Bridges between topics', bridgeRow: n => `${n} item${n === 1 ? '' : 's'} in between`,
+    cross: 'Across your tools', crossSub: n => `${n} connections join things you wrote in different apps.`,
+    deep: 'Deep dives', yearAgo: 'This month, a year ago', nothing: 'Nothing here yet.',
+    ctx: 'Context card for your AI', ctxSub: 'Paste this into ChatGPT or Claude so it knows what you care about.',
+    copy: 'Copy', copied: 'Copied ✓',
+    ctxHead: (a, b) => `# About me\n(Generated by Brainprint from my own writing, ${a} to ${b}.)`,
+    ctxTopics: 'What I think and write about most:', ctxNow: 'Lately I am focused on:', ctxDrop: 'I have moved away from:',
+    ctxHabit: (d, h) => `I do most of my thinking on ${d}s around ${h}:00.`,
+    ctxEnd: 'Use this to pick relevant examples. Ask before assuming anything else about me.',
+    nbTitle: 'Your record in numbers', nbSub: (a, b) => `From ${a} to ${b}.`,
+    items: 'Items', writes: 'Things you wrote', wordsYou: 'Words you wrote', pages: 'pages',
+    activeDays: 'Active days', streak: 'Longest streak', days: 'days in a row',
+    busiestMonth: 'Busiest month', rhythm: 'Your rhythm', mostOn: (d, h) => `Most active on ${d}s around ${h}:00`,
+    night: 'Night owl', nightSub: 'of what you wrote, between 00:00 and 06:00', longest: 'Longest item',
+    bySource: 'Where you write', heat: 'When you write', share: 'What you write about', undated: n => `${n} without a date`,
+    footer: v => `Made with Brainprint ${v} · generated locally, nothing left your computer`,
+    src: { memory: 'AI memory' },
+    weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    weekdaysLong: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  },
+  es: {
+    tabs: { brain: 'Cerebro', timeline: 'Cronología', waves: 'Olas', tables: 'Tablas', review: 'Repaso', numbers: 'Números' },
+    sub: (n, a, b) => `${n} elementos · ${a} → ${b}`, private: 'privado', search: 'Buscar…',
+    topics: 'Temas', sources: 'Fuentes', brain: 'Cerebro', galaxy: 'Galaxia', synapses: 'Sinapsis',
+    hint: 'Arrastra para girar · rueda para acercar · pulsa un punto para abrirlo',
+    kinds: ['chat con IA', 'nota', 'mensaje'], kindsPl: ['chats con IA', 'notas y documentos', 'mensajes'],
+    hidden: 'Oculto (modo privado)', nodate: 'sin fecha', words: 'palabras', msgs: 'mensajes', sent: 'enviados',
+    related: 'Relacionado', linked: 'enlazado', similar: 'parecido', none: 'No hay nada relacionado.',
+    privateNote: 'Modo privado: los títulos y el texto no están en este archivo.', soFar: 'hasta aquí',
+    tlTitle: 'Cronología', tlSub: 'Todo lo que has escrito, de lo más nuevo a lo más antiguo. Pulsa una entrada para verla en el cerebro.',
+    showMore: 'Ver más', noMatch: 'Nada coincide con los filtros actuales.',
+    wvTitle: 'Cómo suben y bajan tus intereses', wvSub: 'Elementos al mes de cada tema.',
+    smooth: 'Suavizado', scale: 'Escala', shared: 'Compartida', own: 'Propia de cada tema',
+    tbTitle: 'Constructor de tablas', tbSub: 'Cruza dos propiedades cualesquiera de tu registro.',
+    rows: 'Filas', cols: 'Columnas', measure: 'Medida', total: 'Total',
+    dims: { topic: 'Tema', source: 'Fuente', kind: 'Tipo', year: 'Año', month: 'Mes', weekday: 'Día de la semana', daypart: 'Momento del día' },
+    meas: { items: 'Elementos', words: 'Palabras escritas', writes: 'Mensajes enviados' },
+    dayparts: ['Madrugada (0–6)', 'Mañana (6–12)', 'Tarde (12–18)', 'Noche (18–24)'],
+    rvTitle: 'Repaso', rvSub: d => `Qué ha cambiado en lo que piensas, a fecha de ${d}.`,
+    rising: 'Al alza', fading: 'A la baja', vs: d => `últimos ${d} días frente a los ${d} anteriores`,
+    dormant: 'Abandonados', dormantRow: (d, n) => `nada desde el ${d} (${n} días)`,
+    newest: 'Interés más reciente', since: m => `apareció por primera vez en ${m}`,
+    bridges: 'Puentes entre temas', bridgeRow: n => `${n} elemento${n === 1 ? '' : 's'} a medio camino`,
+    cross: 'Entre tus herramientas', crossSub: n => `${n} conexiones unen cosas que escribiste en apps distintas.`,
+    deep: 'Inmersiones', yearAgo: 'Este mes, hace un año', nothing: 'Aún no hay nada aquí.',
+    ctx: 'Ficha de contexto para tu IA', ctxSub: 'Pégala en ChatGPT o Claude para que sepa qué te interesa.',
+    copy: 'Copiar', copied: 'Copiado ✓',
+    ctxHead: (a, b) => `# Sobre mí\n(Generado por Brainprint a partir de lo que he escrito, del ${a} al ${b}.)`,
+    ctxTopics: 'Sobre lo que más pienso y escribo:', ctxNow: 'Últimamente estoy centrado en:', ctxDrop: 'He dejado de lado:',
+    ctxHabit: (d, h) => `Suelo pensar y escribir los ${d} sobre las ${h}:00.`,
+    ctxEnd: 'Úsalo para elegir ejemplos relevantes. Pregunta antes de suponer cualquier otra cosa sobre mí.',
+    nbTitle: 'Tu registro en números', nbSub: (a, b) => `Del ${a} al ${b}.`,
+    items: 'Elementos', writes: 'Cosas que escribiste', wordsYou: 'Palabras escritas', pages: 'páginas',
+    activeDays: 'Días activos', streak: 'Racha más larga', days: 'días seguidos',
+    busiestMonth: 'Mes con más actividad', rhythm: 'Tu ritmo', mostOn: (d, h) => `Más activo los ${d} sobre las ${h}:00`,
+    night: 'Búho nocturno', nightSub: 'de lo que escribiste, entre las 00:00 y las 06:00', longest: 'Elemento más largo',
+    bySource: 'Dónde escribes', heat: 'Cuándo escribes', share: 'De qué escribes', undated: n => `${n} sin fecha`,
+    footer: v => `Hecho con Brainprint ${v} · generado en local, nada salió de tu ordenador`,
+    src: { memory: 'Memoria de la IA', notes: 'Notas' },
+    weekdays: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+    weekdaysLong: ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados', 'domingos'],
+    months: ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'],
+  },
+}[LANG];
+
+const N = DATA.numbers, P = DATA.points, IT = DATA.items, TP = DATA.topics, E = DATA.edges, R = DATA.review;
+const SRC = Object.fromEntries(N.sources.map(s => [s.id, s]));
+const KIND = ['chat', 'note', 'message'];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = n => Number(n).toLocaleString(LANG);
+const monthName = ym => { const [y, m] = ym.split('-'); return `${L.months[+m - 1]} ${y}`; };
+const touch = matchMedia('(pointer: coarse)').matches;
+const narrow = () => innerWidth < 900;
+
+const PALETTES = {
+  spectrum: ['#6f8cff', '#ff6ad5', '#ffb62e', '#a77bff', '#ff5d7a', '#ff8a3c', '#b9c6ff', '#ffb3e6', '#ffe1a3', '#cf74f0', '#ff7359', '#d9c2ff', '#8f83ff', '#ff64a8', '#ffa035', '#ffc2a1'],
+  aurora: ['#4cc9f0', '#f72585', '#b8f35a', '#ffb703', '#9d4edd', '#2ec4b6', '#ff6b6b', '#ffd6a5', '#80ffdb', '#c77dff', '#f15bb5', '#00bbf9', '#fee440', '#a0c4ff', '#ff9f1c', '#06d6a0'],
+  lava: ['#ffd166', '#ff9f1c', '#ff6b35', '#f94144', '#ffe8a3', '#f8961e', '#ff8fa3', '#e85d04', '#ffba08', '#ff4d6d', '#ffb4a2', '#dc2f02', '#f9c74f', '#e5989b', '#faa307', '#ff7b54'],
+  ocean: ['#4cc9f0', '#80ffdb', '#4895ef', '#64dfdf', '#9d8df1', '#48bfe3', '#72efdd', '#5e60ce', '#90e0ef', '#06d6a0', '#00b4d8', '#ade8f4', '#7b8cff', '#56cfe1', '#b8f1ff', '#3fa7d6'],
+  mono: ['#ffffff', '#c8d0dc', '#9aa5b5', '#e9ecef', '#b3bcc9', '#dfe4ea', '#8f9bad', '#f4f6f8', '#aab4c3', '#d3d9e1', '#bfc7d2', '#eef1f5', '#a2adbd', '#cfd6df', '#e3e7ec', '#98a3b3'],
+};
+let pal = 'spectrum';
+const col = k => PALETTES[pal][k % 16];
+const itemTitle = i => IT[i].t ? esc(IT[i].t) : `<i>${L.hidden}</i>`;
+const itemDate = i => IT[i].u ? L.nodate : IT[i].d;
+const srcName = s => L.src[s] || (SRC[s] ? SRC[s].name : s);
+const kindOf = i => KIND[P[i][9]];
+const dotHtml = k => `<span class="dot" style="background:${col(k)};color:${col(k)}"></span>`;
+
+/* ---------------------------------------------------------------- state */
+const S = { view: 'brain', focus: -1, off: new Set(), q: '', sel: -1, morph: 0, morphTo: 0, cut: 1, playing: false, syn: false };
+const hay = IT.map(it => `${it.t || ''} ${(it.tm || []).join(' ')} ${TP[it.k].name} ${srcName(it.s)}`.toLowerCase());
+const vis = new Uint8Array(IT.length).fill(1);
+const order = IT.map((_, i) => i).sort((a, b) => IT[b].d < IT[a].d ? -1 : IT[b].d > IT[a].d ? 1 : b - a);
+const adj = IT.map(() => []);
+E.forEach(([a, b, w, kind]) => { adj[a].push({ j: b, w, kind }); adj[b].push({ j: a, w, kind }); });
+adj.forEach(list => list.sort((x, y) => y.kind - x.kind || y.w - x.w));
+
+$('title').innerHTML = esc(DATA.meta.title) + (DATA.meta.private ? `<span class="badge">${L.private}</span>` : '');
+$('subtitle').textContent = L.sub(fmt(N.items), N.first, N.last);
+$('q').placeholder = L.search;
+$('hTopics').textContent = L.topics; $('hSources').textContent = L.sources;
+$('hint').textContent = L.hint;
+$('sideToggle').textContent = L.topics;
+$('sideToggle').onclick = () => $('side').classList.toggle('on');
+document.querySelector('#layout [data-m="0"]').textContent = L.brain;
+document.querySelector('#layout [data-m="1"]').textContent = L.galaxy;
+$('syn').textContent = L.synapses;
+
+/* ----------------------------------------------------------------- tabs */
+const views = { brain: () => {}, timeline: drawTimeline, waves: drawWaves, tables: drawTable, review: drawReview, numbers: drawNumbers };
+Object.keys(views).forEach(v => {
+  const b = document.createElement('button');
+  b.textContent = L.tabs[v]; b.dataset.view = v; b.className = v === 'brain' ? 'on' : '';
+  b.onclick = () => show(v);
+  $('tabs').appendChild(b);
+});
+function show(v) {
+  S.view = v;
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x.dataset.view === v));
+  document.querySelectorAll('.view').forEach(x => x.classList.toggle('on', x.id === 'view-' + v));
+  views[v]();
+}
+
+/* ------------------------------------------------------ legend, sources */
+function drawLegend() {
+  $('topics').innerHTML = TP.map(t => `<div class="topic${S.focus >= 0 && S.focus !== t.id ? ' dim' : ''}" data-k="${t.id}">
+    ${dotHtml(t.id)}<span>${esc(t.name)}</span><span class="n">${t.count}</span>
+    <span class="bar" style="background:${col(t.id)};width:${Math.max(4, t.share * 100 / TP[0].share)}%"></span></div>`).join('');
+  $('topics').querySelectorAll('.topic').forEach(el => el.onclick = () => { S.focus = S.focus === +el.dataset.k ? -1 : +el.dataset.k; refilter(); });
+  $('sources').innerHTML = N.sources.map(s => {
+    const kind = KIND[P[IT.findIndex(it => it.s === s.id)][9]];
+    return `<span class="chip${S.off.has(s.id) ? ' off' : ''}" data-s="${s.id}"><span class="shape ${kind}"></span>${esc(srcName(s.id))} <span class="n">${s.count}</span></span>`;
+  }).join('');
+  $('sources').querySelectorAll('.chip').forEach(el => el.onclick = () => { S.off.has(el.dataset.s) ? S.off.delete(el.dataset.s) : S.off.add(el.dataset.s); refilter(); });
+}
+$('q').addEventListener('input', e => { S.q = e.target.value.trim().toLowerCase(); refilter(); });
+$('palette').addEventListener('change', e => { pal = e.target.value; recolor(); });
+
+/* ---------------------------------------------------------------- three */
+const THREE = await import(URL.createObjectURL(new Blob([$('three-src').textContent], { type: 'text/javascript' })));
+const host = $('scene');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+host.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+const root = new THREE.Group();
+scene.add(root);
+
+const U = { uScale: { value: 1 }, uTime: { value: 0 }, uMorph: { value: 0 }, uCut: { value: 1 } };
+const vert = `
+  attribute vec3 pos2; attribute float size; attribute float alpha; attribute vec3 color; attribute float tn; attribute float shape;
+  uniform float uScale; uniform float uTime; uniform float uMode; uniform float uMorph; uniform float uCut;
+  varying vec3 vColor; varying float vAlpha; varying float vShape;
+  void main() {
+    vec3 p = mix(position, pos2, uMorph);
+    float a = alpha;
+    if (uMode > 0.5 && uMode < 1.5) a *= 0.65 + 0.35 * sin(uTime * 1.3 + position.y * 5.0 + position.z * 3.0);
+    if (uMode > 1.5) a *= 0.45 + 0.55 * pow(0.5 + 0.5 * sin(uTime * 2.2 - position.y * 7.0), 3.0);
+    a *= step(tn, uCut);
+    float fresh = (1.0 - smoothstep(0.0, 0.035, uCut - tn)) * step(uCut, 0.999) * step(0.0, tn);
+    vColor = color + fresh * 0.6; vAlpha = a; vShape = shape;
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_PointSize = size * (1.0 + 1.8 * fresh) * uScale / -mv.z;
+    gl_Position = projectionMatrix * mv;
+  }`;
+const frag = `
+  varying vec3 vColor; varying float vAlpha; varying float vShape;
+  void main() {
+    vec2 c = gl_PointCoord - 0.5;
+    float d = length(c), a, core;
+    if (vShape < 0.5) {                      // chat: soft disc
+      if (d > 0.5) discard;
+      a = smoothstep(0.5, 0.0, d); a *= a; core = smoothstep(0.16, 0.0, d);
+    } else if (vShape < 1.5) {               // note: diamond
+      float m = abs(c.x) + abs(c.y);
+      if (m > 0.5) discard;
+      a = smoothstep(0.5, 0.05, m); a = a * a * 1.25; core = smoothstep(0.2, 0.0, m);
+    } else {                                 // message: ring
+      if (d > 0.5) discard;
+      float ring = smoothstep(0.5, 0.4, d) * smoothstep(0.22, 0.32, d);
+      a = max(ring * 0.9, pow(smoothstep(0.5, 0.0, d), 2.0) * 0.45); core = ring * 0.6;
+    }
+    gl_FragColor = vec4(vColor * (0.55 + 0.9 * core), a * vAlpha);
+  }`;
+function cloud(attrs, mode) {
+  const g = new THREE.BufferGeometry();
+  for (const [name, arr, n] of attrs) g.setAttribute(name, new THREE.Float32BufferAttribute(arr, n));
+  const m = new THREE.ShaderMaterial({ vertexShader: vert, fragmentShader: frag, transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending, uniforms: { ...U, uMode: { value: mode } } });
+  const p = new THREE.Points(g, m);
+  p.frustumCulled = false;
+  root.add(p);
+  return p;
+}
+const rgb = k => new THREE.Color(col(k)).toArray();
+const flat = (rows, a, b) => { const out = new Float32Array(rows.length * (b - a)); rows.forEach((r, i) => { for (let j = a; j < b; j++) out[i * (b - a) + j - a] = r[j]; }); return out; };
+function rnd32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// decorative shell: brain outline that turns into galactic dust and orbit rings
+const nShell = DATA.shell.length / 3, rnd = rnd32(42), dust = new Float32Array(nShell * 3);
+const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-9)) * Math.cos(6.2832 * rnd());
+for (let i = 0; i < nShell; i++) {
+  let r, ang = rnd() * 6.2832, y;
+  if (rnd() < 0.3) { r = [0.78, 1.22, 1.66, 2.08][i % 4] + (rnd() - 0.5) * 0.012; y = (rnd() - 0.5) * 0.012; }
+  else { r = 0.3 + 1.9 * Math.sqrt(rnd()); y = gauss() * 0.045; if (rnd() < 0.6) ang = 6.2832 * Math.floor(rnd() * TP.length) / TP.length + 1.75 * r + gauss() * 0.3; }
+  dust.set([r * Math.cos(ang), y, r * Math.sin(ang)], i * 3);
+}
+const shellCloud = cloud([['position', DATA.shell, 3], ['pos2', dust, 3], ['color', new Float32Array(nShell * 3).map((_, i) => [0.55, 0.65, 0.95][i % 3]), 3],
+  ['size', new Float32Array(nShell).fill(5.5), 1], ['alpha', new Float32Array(nShell).fill(0.5), 1],
+  ['tn', new Float32Array(nShell).fill(-1), 1], ['shape', new Float32Array(nShell), 1]], 1);
+
+const baseSize = P.map(p => 15 * p[7]);
+const ptCloud = cloud([['position', flat(P, 0, 3), 3], ['pos2', flat(P, 3, 6), 3], ['color', P.flatMap(p => rgb(p[6])), 3],
+  ['size', baseSize.slice(), 1], ['alpha', new Float32Array(P.length).fill(0.95), 1], ['tn', P.map(p => p[8]), 1], ['shape', P.map(p => p[9]), 1]], 0);
+
+const SP = DATA.spine;
+const spCloud = cloud([['position', flat(SP, 0, 3), 3], ['pos2', flat(SP, 3, 6), 3], ['color', SP.flatMap(s => rgb(s[6])), 3],
+  ['size', new Float32Array(SP.length).fill(5), 1], ['alpha', new Float32Array(SP.length).fill(0.75), 1],
+  ['tn', SP.map(s => s[7]), 1], ['shape', new Float32Array(SP.length), 1]], 2);
+
+// lines: all connections ("synapses") and the selected item's connections
+const lineVert = `attribute vec3 pos2; attribute float tn; uniform float uMorph; varying float vT;
+  void main() { vT = tn; gl_Position = projectionMatrix * modelViewMatrix * vec4(mix(position, pos2, uMorph), 1.0); }`;
+const lineFrag = `uniform vec3 uColor; uniform float uOpacity; uniform float uCut; varying float vT;
+  void main() { if (vT > uCut) discard; gl_FragColor = vec4(uColor, uOpacity); }`;
+function lines(pairs, color, opacity) {
+  const a = new Float32Array(pairs.length * 6), b = new Float32Array(pairs.length * 6), t = new Float32Array(pairs.length * 2);
+  pairs.forEach(([i, j], n) => {
+    a.set(P[i].slice(0, 3), n * 6); a.set(P[j].slice(0, 3), n * 6 + 3);
+    b.set(P[i].slice(3, 6), n * 6); b.set(P[j].slice(3, 6), n * 6 + 3);
+    t[n * 2] = t[n * 2 + 1] = Math.max(P[i][8], P[j][8]);
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(a, 3)); g.setAttribute('pos2', new THREE.BufferAttribute(b, 3));
+  g.setAttribute('tn', new THREE.BufferAttribute(t, 1));
+  const m = new THREE.ShaderMaterial({ vertexShader: lineVert, fragmentShader: lineFrag, transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending, uniforms: { uMorph: U.uMorph, uCut: U.uCut, uColor: { value: new THREE.Color(color) }, uOpacity: { value: opacity } } });
+  const obj = new THREE.LineSegments(g, m);
+  obj.frustumCulled = false;
+  root.add(obj);
+  return obj;
+}
+const drop = obj => { if (obj) { root.remove(obj); obj.geometry.dispose(); obj.material.dispose(); } return null; };
+let synLines = null, selLines = null;
+function drawSynapses() {
+  synLines = drop(synLines);
+  if (S.syn) synLines = lines(E.filter(([a, b]) => vis[a] && vis[b]), '#9fb4ff', 0.13);
+}
+$('syn').onclick = () => { S.syn = !S.syn; $('syn').classList.toggle('on', S.syn); drawSynapses(); };
+
+/* -------------------------------------------------------------- filters */
+function refilter() {
+  let n = 0;
+  const a = ptCloud.geometry.attributes.alpha;
+  for (let i = 0; i < IT.length; i++) {
+    vis[i] = (S.focus < 0 || IT[i].k === S.focus) && !S.off.has(IT[i].s) && (!S.q || hay[i].includes(S.q)) ? 1 : 0;
+    a.array[i] = vis[i] ? 0.95 : 0.05;
+    n += vis[i];
+  }
+  a.needsUpdate = true;
+  const sa = spCloud.geometry.attributes.alpha;
+  SP.forEach((s, i) => { sa.array[i] = S.focus < 0 || s[6] === S.focus ? 0.75 : 0.04; });
+  sa.needsUpdate = true;
+  labels.forEach((l, k) => { l.el.style.opacity = S.focus < 0 || S.focus === k ? 1 : 0.15; });
+  $('subtitle').textContent = n === IT.length ? L.sub(fmt(N.items), N.first, N.last) : `${fmt(n)} / ${fmt(IT.length)}`;
+  drawLegend();
+  drawSynapses();
+  if (S.view === 'timeline') drawTimeline();
+}
+function recolor() {
+  const c = ptCloud.geometry.attributes.color; P.forEach((p, i) => c.array.set(rgb(p[6]), i * 3)); c.needsUpdate = true;
+  const sc = spCloud.geometry.attributes.color; SP.forEach((s, i) => sc.array.set(rgb(s[6]), i * 3)); sc.needsUpdate = true;
+  labels.forEach((l, k) => { l.el.style.color = col(k); });
+  drawLegend(); select(S.sel); views[S.view]();
+}
+
+/* --------------------------------------------------------------- labels */
+const centre = (k, o) => { const c = new THREE.Vector3(); let n = 0; P.forEach(p => { if (p[6] === k) { c.x += p[o]; c.y += p[o + 1]; c.z += p[o + 2]; n++; } }); return c.divideScalar(Math.max(1, n)); };
+const labels = TP.map(t => {
+  const el = document.createElement('div');
+  el.className = 'label3d'; el.style.color = col(t.id); el.textContent = t.name;
+  $('labels').appendChild(el);
+  return { el, a: centre(t.id, 0), b: centre(t.id, 3) };
+});
+
+/* ------------------------------------------------------- camera, picking */
+let yaw = -1.25, pitch = 0.18, dist = 5.0, pitchTo = 0.18, distTo = 5.0, gliding = false;
+let autoRotate = true, dragging = false, moved = 0, lastX = 0, lastY = 0, pinch = 0, idle = 0;
+const el = renderer.domElement, mouse = { x: -9, y: -9 }, v = new THREE.Vector3();
+const zoom = f => { dist = Math.max(2.2, Math.min(14, dist * f)); gliding = false; };
+el.addEventListener('pointerdown', e => { dragging = true; moved = 0; autoRotate = false; gliding = false; lastX = e.clientX; lastY = e.clientY; clearTimeout(idle); });
+addEventListener('pointerup', () => { if (dragging) { dragging = false; idle = setTimeout(() => { if (S.sel < 0) autoRotate = true; }, 5000); } });
+addEventListener('pointermove', e => {
+  if (dragging) {
+    yaw += (e.clientX - lastX) * 0.006;
+    pitch = Math.max(-1.3, Math.min(1.3, pitch + (e.clientY - lastY) * 0.004));
+    moved += Math.abs(e.clientX - lastX) + Math.abs(e.clientY - lastY);
+    lastX = e.clientX; lastY = e.clientY;
+  }
+  mouse.x = e.clientX; mouse.y = e.clientY;
+});
+el.addEventListener('click', e => { if (moved < 6) select(pick(e.clientX, e.clientY)); });
+el.addEventListener('wheel', e => { e.preventDefault(); zoom(1 + e.deltaY * 0.001); }, { passive: false });
+el.addEventListener('touchmove', e => {
+  if (e.touches.length === 2) {
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    if (pinch) zoom(pinch / d);
+    pinch = d;
+  }
+}, { passive: true });
+el.addEventListener('touchend', () => { pinch = 0; });
+
+function place(i, out) {
+  const p = P[i], m = S.morph;
+  return out.set(p[0] + (p[3] - p[0]) * m, p[1] + (p[4] - p[1]) * m, p[2] + (p[5] - p[2]) * m).add(root.position);
+}
+function screen(vec) { vec.project(camera); return { x: (vec.x * 0.5 + 0.5) * innerWidth, y: (-vec.y * 0.5 + 0.5) * innerHeight, z: vec.z }; }
+function pick(mx, my) {
+  let best = -1, bd = touch ? 26 : 13;
+  for (let i = 0; i < P.length; i++) {
+    if (!vis[i] || P[i][8] > S.cut) continue;
+    const s = screen(place(i, v));
+    if (s.z > 1) continue;
+    const d = Math.hypot(s.x - mx, s.y - my);
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
+const tip = $('tip');
+let hovered = -1;
+function grow(i, f) { if (i >= 0) { const a = ptCloud.geometry.attributes.size; a.array[i] = baseSize[i] * f; a.needsUpdate = true; } }
+function hover() {
+  const i = dragging ? -1 : pick(mouse.x, mouse.y);
+  if (i !== hovered) { grow(hovered, hovered === S.sel ? 2.6 : 1); hovered = i; grow(i, 2.4); }
+  el.style.cursor = i >= 0 ? 'pointer' : 'grab';
+  if (i < 0) { tip.style.display = 'none'; return; }
+  tip.innerHTML = `<b>${itemTitle(i)}</b><span style="color:${col(IT[i].k)}">● ${esc(TP[IT[i].k].name)}</span><br>
+    <span class="muted">${esc(srcName(IT[i].s))} · ${itemDate(i)}</span>`;
+  tip.style.display = 'block';
+  tip.style.left = Math.min(innerWidth - 270, mouse.x + 14) + 'px';
+  tip.style.top = Math.min(innerHeight - 80, mouse.y + 14) + 'px';
+}
+
+/* --------------------------------------------------------------- detail */
+function select(i) {
+  grow(S.sel, 1);
+  S.sel = i;
+  selLines = drop(selLines);
+  const box = $('detail');
+  if (i < 0) { box.classList.remove('on'); return; }
+  grow(i, 2.6);
+  autoRotate = false;
+  const it = IT[i], rel = adj[i].slice(0, 8);
+  if (rel.length) selLines = lines(rel.map(r => [i, r.j]), col(it.k), 0.85);
+  const stats = [`${fmt(it.w)} ${L.words}`];
+  if (kindOf(i) === 'chat') stats.push(`${it.n} ${L.msgs}`);
+  if (kindOf(i) === 'message') stats.push(`${it.n} ${L.sent}`);
+  box.innerHTML = `<button class="close" aria-label="close">×</button>
+    <span class="chip static"><span class="shape ${kindOf(i)}"></span>${esc(srcName(it.s))} · ${L.kinds[P[i][9]]}</span>
+    <h2>${itemTitle(i)}</h2>
+    <div class="meta">${itemDate(i)} · ${stats.join(' · ')}</div>
+    <div class="chips" style="margin:10px 0"><span class="chip" id="dTopic">${dotHtml(it.k)}${esc(TP[it.k].name)}</span>
+      ${(it.tm || []).map(t => `<span class="chip static">${esc(t)}</span>`).join('')}</div>
+    ${it.x ? `<blockquote>${esc(it.x)}${it.x.length >= 180 ? '…' : ''}</blockquote>` : ''}
+    ${DATA.meta.private ? `<p class="muted">${L.privateNote}</p>` : ''}
+    <h3 style="margin-top:14px">${L.related}</h3>
+    ${rel.length ? rel.map(r => `<div class="rel" data-j="${r.j}">${dotHtml(IT[r.j].k)}<span>${itemTitle(r.j)}<br><small>${esc(srcName(IT[r.j].s))} · ${itemDate(r.j)}</small></span>
+      <small>${r.kind ? L.linked : Math.round(r.w * 100) + '% ' + L.similar}</small></div>`).join('') : `<p class="muted">${L.none}</p>`}`;
+  box.classList.add('on');
+  box.querySelector('.close').onclick = () => select(-1);
+  box.querySelector('#dTopic').onclick = () => { S.focus = it.k; refilter(); };
+  box.querySelectorAll('.rel').forEach(r => r.onclick = () => select(+r.dataset.j));
+}
+function openItem(i) { show('brain'); if (!vis[i]) { S.focus = -1; S.q = ''; $('q').value = ''; S.off.clear(); refilter(); } select(i); }
+
+/* ---------------------------------------------------- layout, time-lapse */
+document.querySelectorAll('#layout button').forEach(b => b.onclick = () => setLayout(+b.dataset.m));
+const camDist = m => narrow() ? 7.4 + 4.6 * m : 5.0 + 1.9 * m;
+function setLayout(m) {
+  S.morphTo = m;
+  document.querySelectorAll('#layout button').forEach(b => b.classList.toggle('on', +b.dataset.m === m));
+  pitchTo = m ? 0.62 : 0.18; distTo = camDist(m); gliding = true;
+}
+const tns = P.map(p => p[8]).sort((a, b) => a - b);
+const t0 = Date.parse(N.first), t1 = Date.parse(N.last);
+function setCut(c) {
+  S.cut = Math.max(0, Math.min(1, c));
+  U.uCut.value = S.cut >= 1 ? 1 : S.cut;
+  $('cut').value = Math.round(S.cut * 1000);
+  let lo = 0, hi = tns.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; tns[mid] <= S.cut ? lo = mid + 1 : hi = mid; }
+  const d = new Date(t0 + (t1 - t0) * S.cut);
+  $('cutLabel').textContent = S.cut >= 1 ? `${fmt(IT.length)} · ${monthName(N.last.slice(0, 7))}` : `${fmt(lo)} · ${L.months[d.getMonth()]} ${d.getFullYear()}`;
+}
+$('cut').addEventListener('input', e => { S.playing = false; $('play').textContent = '▶'; setCut(e.target.value / 1000); });
+$('play').onclick = () => { S.playing = !S.playing; $('play').textContent = S.playing ? '❚❚' : '▶'; if (S.playing && S.cut >= 1) setCut(0); };
+
+/* --------------------------------------------------------------- render */
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  U.uScale.value = 4.6 * innerHeight * renderer.getPixelRatio() / 900;
+}
+addEventListener('resize', resize);
+resize();
+dist = distTo = camDist(0);
+
+const clock = new THREE.Clock();
+let prev = 0;
+function frame() {
+  requestAnimationFrame(frame);
+  const t = clock.getElapsedTime(), dt = Math.min(0.1, t - prev);
+  prev = t;
+  if (S.view !== 'brain') return;
+  if (autoRotate) yaw += 0.0025;
+  if (S.playing) { setCut(S.cut + dt / 14); if (S.cut >= 1) { S.playing = false; $('play').textContent = '▶'; } }
+  S.morph += (S.morphTo - S.morph) * Math.min(1, dt * 3.2);
+  if (Math.abs(S.morphTo - S.morph) < 0.0005) S.morph = S.morphTo;
+  if (gliding) { pitch += (pitchTo - pitch) * 0.05; dist += (distTo - dist) * 0.05; if (Math.abs(distTo - dist) < 0.01) gliding = false; }
+  U.uMorph.value = S.morph; U.uTime.value = t;
+  root.position.y = 0.32 * (1 - S.morph);
+  camera.position.set(Math.sin(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist);
+  camera.lookAt(0, 0, 0);
+  labels.forEach(l => { const s = screen(v.copy(l.a).lerp(l.b, S.morph).add(root.position)); l.el.style.left = s.x + 'px'; l.el.style.top = s.y + 'px'; });
+  if (!touch) hover();
+  renderer.render(scene, camera);
+}
+
+/* ------------------------------------------------------------- timeline */
+let tlLimit = 300;
+function drawTimeline() {
+  $('tlTitle').textContent = L.tlTitle; $('tlSub').textContent = L.tlSub;
+  const rows = order.filter(i => vis[i]);
+  const key = i => IT[i].u ? '' : IT[i].d.slice(0, 7);
+  const counts = new Map();
+  rows.forEach(i => counts.set(key(i), (counts.get(key(i)) || 0) + 1));
+  const max = Math.max(1, ...counts.values());
+  $('tlMonths').innerHTML = [...counts].map(([m, n]) => `<div class="mo" data-m="${m}"><span>${m ? monthName(m) : L.nodate}</span><span class="n">${n}</span><i style="width:${n / max * 100}%"></i></div>`).join('');
+  let html = '', last = null;
+  rows.slice(0, tlLimit).forEach(i => {
+    if (key(i) !== last) { last = key(i); html += `<div class="tlHead" id="m-${last}">${last ? monthName(last) : L.nodate} · ${counts.get(last)}</div>`; }
+    html += `<div class="row" data-i="${i}">${dotHtml(IT[i].k)}<span class="ttl">${itemTitle(i)} <span class="muted">· ${esc(TP[IT[i].k].name)}</span></span>
+      <span class="chip static src"><span class="shape ${kindOf(i)}"></span>${esc(srcName(IT[i].s))}</span><span class="n">${itemDate(i)}</span></div>`;
+  });
+  if (!rows.length) html = `<p class="muted">${L.noMatch}</p>`;
+  if (rows.length > tlLimit) html += `<button class="more">${L.showMore} (${fmt(rows.length - tlLimit)})</button>`;
+  $('tlList').innerHTML = html;
+  $('tlList').querySelectorAll('.row').forEach(r => r.onclick = () => openItem(+r.dataset.i));
+  const more = $('tlList').querySelector('.more');
+  if (more) more.onclick = () => { tlLimit += 600; drawTimeline(); };
+  $('tlMonths').querySelectorAll('.mo').forEach(m => m.onclick = () => {
+    const idx = rows.findIndex(i => key(i) === m.dataset.m);
+    if (idx >= tlLimit) { tlLimit = idx + 100; drawTimeline(); }
+    const head = document.getElementById('m-' + m.dataset.m);
+    if (head) head.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+/* ---------------------------------------------------------------- waves */
+$('wvSmoothL').textContent = L.smooth; $('wvScaleL').textContent = L.scale;
+$('wvScale').innerHTML = `<option value="shared">${L.shared}</option><option value="own">${L.own}</option>`;
+$('wvSmooth').oninput = $('wvScale').onchange = drawWaves;
+function drawWaves() {
+  $('wvTitle').textContent = L.wvTitle; $('wvSub').textContent = L.wvSub;
+  const svg = $('wavesSvg'), W = svg.clientWidth || 1000, rowH = 46, nar = narrow();
+  const left = nar ? 8 : 190, top = 30, H = top + TP.length * rowH + 60, M = DATA.months;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('height', H);
+  const passes = +$('wvSmooth').value, own = $('wvScale').value === 'own';
+  const series = DATA.waves.map(raw => { let s = raw.slice(); for (let p = 0; p < passes; p++) s = s.map((_, i) => (s[i - 1] ?? s[i]) * 0.25 + s[i] * 0.5 + (s[i + 1] ?? s[i]) * 0.25); return s; });
+  const gmax = Math.max(1, ...series.flat());
+  const x = i => left + (W - left - 34) * (M.length === 1 ? 0.5 : i / (M.length - 1));
+  let out = '';
+  TP.forEach((t, k) => {
+    const base = top + (k + 1) * rowH, s = series[k], max = own ? Math.max(1, ...s) : gmax;
+    const y = i => base - (s[i] / max) * rowH * (own ? 0.9 : 1.9);
+    let d = `M ${x(0)} ${y(0)}`;
+    for (let i = 1; i < M.length; i++) { const cx = (x(i - 1) + x(i)) / 2; d += ` C ${cx} ${y(i - 1)}, ${cx} ${y(i)}, ${x(i)} ${y(i)}`; }
+    const c = col(t.id);
+    out += `<defs><linearGradient id="g${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c}" stop-opacity="0.55"/><stop offset="1" stop-color="${c}" stop-opacity="0.04"/></linearGradient></defs>
+      <path d="${d} L ${x(M.length - 1)} ${base} L ${x(0)} ${base} Z" fill="url(#g${k})"/><path d="${d}" fill="none" stroke="${c}" stroke-width="1.8"/>` +
+      (nar ? `<text x="${left + 2}" y="${base - 5}" fill="${c}" font-size="11" font-weight="600" paint-order="stroke" stroke="#000" stroke-width="3">${esc(t.name)} · ${t.count}</text>`
+        : `<text x="${left - 12}" y="${base - 4}" text-anchor="end" fill="${c}" font-size="12" font-weight="600">${esc(t.name)}</text>
+           <text x="${left - 12}" y="${base + 10}" text-anchor="end" fill="#8d8d96" font-size="10">${t.count}</text>`);
+  });
+  const every = Math.max(1, Math.ceil(M.length / (nar ? 4 : 9)));
+  M.forEach((m, i) => { if (i % every === 0) out += `<line x1="${x(i)}" x2="${x(i)}" y1="${top}" y2="${H - 44}" stroke="rgba(255,255,255,0.06)"/><text x="${x(i)}" y="${H - 26}" text-anchor="middle" fill="#8d8d96" font-size="11">${monthName(m)}</text>`; });
+  svg.innerHTML = out;
+}
+addEventListener('resize', () => { if (S.view === 'waves') drawWaves(); });
+
+/* --------------------------------------------------------------- tables */
+const wd = i => (new Date(IT[i].d + 'T12:00:00').getDay() + 6) % 7;
+const DIMS = {
+  topic: { get: i => IT[i].k, keys: () => TP.map(t => t.id), name: k => TP[k].name, color: k => col(k) },
+  source: { get: i => IT[i].s, keys: () => N.sources.map(s => s.id), name: srcName },
+  kind: { get: i => P[i][9], keys: () => [0, 1, 2].filter(k => P.some(p => p[9] === k)), name: k => L.kindsPl[k] },
+  year: { get: i => IT[i].d.slice(0, 4), time: true, name: k => k },
+  month: { get: i => IT[i].d.slice(0, 7), time: true, name: monthName },
+  weekday: { get: wd, time: true, keys: () => [0, 1, 2, 3, 4, 5, 6], name: k => L.weekdays[k] },
+  daypart: { get: i => Math.min(3, Math.floor(IT[i].h / 6)), time: true, keys: () => [0, 1, 2, 3], name: k => L.dayparts[k] },
+};
+const MEAS = { items: () => 1, words: i => IT[i].w, writes: i => IT[i].p };
+$('tbRowsL').textContent = L.rows; $('tbColsL').textContent = L.cols; $('tbMeasL').textContent = L.measure;
+const dimOpts = Object.keys(DIMS).map(d => `<option value="${d}">${L.dims[d]}</option>`).join('');
+$('tbRows').innerHTML = dimOpts; $('tbCols').innerHTML = dimOpts; $('tbCols').value = 'source';
+$('tbMeas').innerHTML = Object.keys(MEAS).map(m => `<option value="${m}">${L.meas[m]}</option>`).join('');
+$('tbRows').onchange = $('tbCols').onchange = $('tbMeas').onchange = drawTable;
+function drawTable() {
+  $('tbTitle').textContent = L.tbTitle; $('tbSub').textContent = L.tbSub;
+  const r = DIMS[$('tbRows').value], c = DIMS[$('tbCols').value], m = MEAS[$('tbMeas').value];
+  const cells = new Map(), rk = new Set(), ck = new Set();
+  for (let i = 0; i < IT.length; i++) {
+    if (!vis[i] || (IT[i].u && (r.time || c.time))) continue;
+    const a = r.get(i), b = c.get(i);
+    rk.add(a); ck.add(b);
+    cells.set(a + '|' + b, (cells.get(a + '|' + b) || 0) + m(i));
+  }
+  const keys = (d, seen) => (d.keys ? d.keys().filter(k => seen.has(k)) : [...seen].sort());
+  const rows = keys(r, rk), cols = keys(c, ck), val = (a, b) => cells.get(a + '|' + b) || 0;
+  const max = Math.max(1, ...cells.values());
+  const cell = n => `<td style="background:rgba(167,123,255,${n ? (0.08 + 0.72 * Math.sqrt(n / max)).toFixed(2) : 0.03})">${n ? fmt(n) : ''}</td>`;
+  const sum = arr => arr.reduce((x, y) => x + y, 0);
+  $('tbOut').innerHTML = rows.length ? `<table class="pv"><thead><tr><th></th>${cols.map(b => `<th>${esc(c.name(b))}</th>`).join('')}<th>${L.total}</th></tr></thead><tbody>
+    ${rows.map(a => `<tr><th style="${r.color ? 'color:' + r.color(a) : ''}">${esc(r.name(a))}</th>${cols.map(b => cell(val(a, b))).join('')}<td class="tot">${fmt(sum(cols.map(b => val(a, b))))}</td></tr>`).join('')}
+    <tr><th>${L.total}</th>${cols.map(b => `<td class="tot">${fmt(sum(rows.map(a => val(a, b))))}</td>`).join('')}<td class="tot">${fmt(sum([...cells.values()]))}</td></tr></tbody></table>` : `<p class="muted">${L.noMatch}</p>`;
+}
+
+/* --------------------------------------------------------------- review */
+function contextCard() {
+  const names = list => list.map(r => TP[r.k].name).join(', ');
+  const out = [L.ctxHead(N.first, N.last), '', L.ctxTopics];
+  TP.slice(0, 8).forEach(t => out.push(`- ${t.name} (${Math.round(t.share * 100)}%): ${t.terms.join(', ')}`));
+  if (R.rising.length) out.push('', `${L.ctxNow} ${names(R.rising)}.`);
+  if (R.dormant.length) out.push(`${L.ctxDrop} ${names(R.dormant)}.`);
+  out.push(L.ctxHabit(L.weekdaysLong[N.busiest_weekday], N.busiest_hour), '', L.ctxEnd);
+  return out.join('\n');
+}
+function drawReview() {
+  $('rvTitle').textContent = L.rvTitle; $('rvSub').textContent = L.rvSub(N.last);
+  const tname = k => `<b style="color:${col(k)}">${esc(TP[k].name)}</b>`;
+  const go = i => `<span class="go" data-i="${i}">${itemTitle(i)}</span>`;
+  const card = (title, body, cls = '') => `<div class="card panel ${cls}"><h3>${title}</h3>${body || `<p class="muted">${L.nothing}</p>`}</div>`;
+  const trend = list => list.map(r => `<div class="line">${dotHtml(r.k)}${tname(r.k)}<span class="arrow">${r.before} → ${r.now}</span></div>`).join('');
+  const itemLine = i => `<div class="line">${dotHtml(IT[i].k)}<span>${go(i)} <span class="muted">· ${esc(srcName(IT[i].s))} · ${itemDate(i)}</span></span></div>`;
+  let h = '';
+  h += card(`${L.rising} <span class="muted" style="text-transform:none;letter-spacing:0">· ${L.vs(R.window)}</span>`, trend(R.rising));
+  h += card(`${L.fading} <span class="muted" style="text-transform:none;letter-spacing:0">· ${L.vs(R.window)}</span>`, trend(R.fading));
+  h += card(L.dormant, R.dormant.map(r => `<div class="line">${dotHtml(r.k)}<span>${tname(r.k)} <span class="muted">· ${L.dormantRow(r.last, r.days)}</span></span></div>`).join(''));
+  h += card(L.newest, R.newest ? `<div class="line">${dotHtml(R.newest.k)}<span>${tname(R.newest.k)} <span class="muted">· ${L.since(monthName(R.newest.since))}</span></span></div>` : '');
+  h += card(L.bridges, R.bridges.map(b => `<div class="line"><span>${tname(b.a)} ↔ ${tname(b.b)} <span class="muted">· ${L.bridgeRow(b.n)}</span><br><span class="muted">${b.ex.map(go).join(' · ')}</span></span></div>`).join(''));
+  h += card(L.cross, R.cross.length ? `<p class="muted">${L.crossSub(fmt(R.cross_total))}</p>` + R.cross.map(([a, b]) => `<div class="line"><span>${go(a)} <span class="muted">(${esc(srcName(IT[a].s))})</span> ↔ ${go(b)} <span class="muted">(${esc(srcName(IT[b].s))})</span></span></div>`).join('') : '');
+  h += card(L.deep, R.deep.map(i => `<div class="line">${dotHtml(IT[i].k)}<span>${go(i)} <span class="muted">· ${fmt(IT[i].w)} ${L.words}</span></span></div>`).join(''));
+  h += card(L.yearAgo, R.year_ago.map(itemLine).join(''));
+  h += card(L.ctx, `<p class="muted">${L.ctxSub}</p><pre id="ctx">${esc(contextCard())}</pre><button class="btn" id="copy">${L.copy}</button>`, 'full');
+  $('rvCards').innerHTML = h;
+  $('rvCards').querySelectorAll('.go').forEach(g => g.onclick = () => openItem(+g.dataset.i));
+  $('copy').onclick = async () => {
+    const text = $('ctx').textContent;
+    try { await navigator.clipboard.writeText(text); } catch { const r = document.createRange(); r.selectNodeContents($('ctx')); getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand('copy'); }
+    $('copy').textContent = L.copied;
+  };
+}
+
+/* -------------------------------------------------------------- numbers */
+function drawNumbers() {
+  $('nbTitle').textContent = L.nbTitle; $('nbSub').textContent = L.nbSub(N.first, N.last);
+  const card = (label, big, small = '', cls = '') => `<div class="card panel ${cls}"><h3>${label}</h3><div class="big">${big}</div><div class="small">${small}</div></div>`;
+  const kinds = KIND.map((k, i) => N.kinds[k] ? `${fmt(N.kinds[k])} ${L.kindsPl[i]}` : '').filter(Boolean).join(' · ');
+  let h = card(L.items, fmt(N.items), kinds + (N.undated ? ` · ${L.undated(N.undated)}` : ''));
+  h += card(L.writes, fmt(N.writes), `${fmt(N.active_days)} ${L.activeDays.toLowerCase()}`);
+  h += card(L.wordsYou, fmt(N.words), `≈ ${fmt(Math.round(N.words / 250))} ${L.pages}`);
+  h += card(L.streak, `${N.streak}`, L.days);
+  h += card(L.busiestMonth, monthName(N.busiest_month.month), `${N.busiest_month.count} ${L.items.toLowerCase()}`);
+  h += card(L.rhythm, `${String(N.busiest_hour).padStart(2, '0')}:00`, L.mostOn(L.weekdaysLong[N.busiest_weekday], N.busiest_hour));
+  h += card(L.night, `${Math.round(N.night_share * 100)}%`, L.nightSub);
+  h += card(L.longest, `${fmt(N.longest.words)} ${L.words}`, N.longest.title ? esc(N.longest.title) : `<i>${L.hidden}</i>`);
+  const bar = (name, share, rel, color, extra = '') => `<div class="share"><span style="color:${color || 'inherit'}">${name}</span><div class="track"><div class="fill${color ? '' : ' all'}" style="width:${(rel * 100).toFixed(1)}%;${color ? 'background:' + color : ''}"></div></div><span style="text-align:right;color:#8b93a7">${share}${extra}</span></div>`;
+  h += `<div class="card panel full"><h3>${L.bySource}</h3>${N.sources.map(s => bar(esc(srcName(s.id)), fmt(s.count), s.count / N.sources[0].count, '')).join('')}</div>`;
+  const hmax = Math.max(1, ...N.heat.flat());
+  let heat = '<div></div>' + Array.from({ length: 24 }, (_, x) => `<div style="text-align:center">${x % 3 === 0 ? x : ''}</div>`).join('');
+  N.heat.forEach((row, d) => { heat += `<div>${L.weekdays[d]}</div>` + row.map(n => `<div class="c" title="${n}" style="background:rgba(167,123,255,${n ? (0.12 + 0.88 * Math.sqrt(n / hmax)).toFixed(2) : 0.04})"></div>`).join(''); });
+  h += `<div class="card panel full"><h3>${L.heat}</h3><div id="heat">${heat}</div></div>`;
+  h += `<div class="card panel full"><h3>${L.share}</h3>${TP.map(t => bar(esc(t.name), Math.round(t.share * 100), t.share / TP[0].share, col(t.id), '%')).join('')}</div>`;
+  $('cards').innerHTML = h;
+  $('footer').textContent = L.footer(DATA.meta.version);
+}
+
+/* ----------------------------------------------------------------- boot */
+drawLegend();
+setCut(1);
+frame();
+// small API used by the screenshot and test scripts
+window.__bp = {
+  ready: true, state: S, show, select, openItem, setLayout, setCut,
+  pause: () => { autoRotate = false; clearTimeout(idle); }, yaw: y => { yaw = y; },
+  morph: m => { setLayout(m >= 0.5 ? 1 : 0); S.morph = S.morphTo = m; pitch = pitchTo = 0.18 + 0.44 * m; dist = distTo = camDist(m); gliding = false; },
+  project: i => { const s = screen(place(i, new THREE.Vector3())); return { x: s.x, y: s.y }; },
+};
+</script>
+</body>
+</html>
