@@ -160,7 +160,9 @@ def test_web_app_matches_python_and_works_offline(site, chrome, tmp_path):
         page.click("#build")
         page.wait_for_selector("#result.on", timeout=120_000)
         web = page.evaluate("window.__brainplug.payload")
-        assert page.evaluate("window.__brainplug.notes") == []
+        # no --me here: the app says whose words it kept, and nothing else
+        notes = page.evaluate("window.__brainplug.notes")
+        assert [n.split(":")[0] for n in notes] == ["Gmail", "WhatsApp"] and all("(detected;" in n or "(detected from" in n for n in notes)
         viewer = next(f for f in page.frames if f.url.startswith("blob:"))
         viewer.wait_for_function("window.__bp && window.__bp.ready", timeout=30_000)
         html = page.evaluate("fetch(document.getElementById('download').href).then(r => r.text())")

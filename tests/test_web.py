@@ -54,7 +54,7 @@ def test_javascript_engine_matches_python(tmp_path):
                     "--tz", ENV["TZ"], "-o", str(tmp_path / "py.html"), "--json", str(tmp_path / "py.json")],
                    check=True, env=ENV, capture_output=True)
     done = subprocess.run([NODE, str(ROOT / "tests" / "js" / "run_engine.mjs"), str(folder), str(tmp_path / "js.json"),
-                           "--topics", "9", "--html"], check=True, env=ENV, capture_output=True, text=True)
+                           "--topics", "9", "--html"], check=True, env=ENV, capture_output=True, encoding="utf-8")
     # These fixtures omit --me: Gmail and WhatsApp both have confident detections.
     assert json.loads(done.stdout)["notes"] == [
         "Gmail: kept the mail sent from me@example.com (detected; to change it, give your address in “Who you are” or with --me).",
@@ -191,7 +191,7 @@ def test_javascript_identity_notes_match_python(tmp_path, case):
     notes = []
     py = sources.load(inputs, me=me, notes=notes)
     done = subprocess.run([NODE, str(ROOT / "tests/js/identity.mjs"), json.dumps(me), *map(str, inputs)],
-                          check=True, env=ENV, capture_output=True, text=True, timeout=30)
+                          check=True, env=ENV, capture_output=True, encoding="utf-8", timeout=30)
     js = json.loads(done.stdout)
     assert js["notes"] == notes
     assert js["count"] == len(py)
@@ -209,7 +209,7 @@ def test_javascript_zip_safety_matches_python(tmp_path, monkeypatch, case):
     notes = []
     py = sources.load([path, path], notes=notes)
     done = subprocess.run([NODE, str(ROOT / "tests/js/zip_safety.mjs"), str(path), json.dumps(limits)],
-                          check=True, env=ENV, capture_output=True, text=True, timeout=30)
+                          check=True, env=ENV, capture_output=True, encoding="utf-8", timeout=30)
     js = json.loads(done.stdout)
     assert js["count"] == len(py) == count
     if reason:
