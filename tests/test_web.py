@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_web  # noqa: E402
-from make_inputs import write_inputs, write_overlap  # noqa: E402
+from make_inputs import write_inputs, write_overlap, write_sessions  # noqa: E402
 
 NODE = shutil.which("node")
 ENV = {**os.environ, "TZ": "Europe/Madrid", "PYTHONPATH": str(ROOT)}
@@ -128,3 +128,21 @@ def test_javascript_leaves_out_what_you_excluded(tmp_path):
                     "--topics", "3"], check=True, env=ENV, capture_output=True)
     js = json.loads((tmp_path / "js.json").read_text(encoding="utf-8"))
     assert js["numbers"]["items"] == len(py) == 11
+
+
+@pytest.mark.skipif(not NODE, reason="needs Node.js")
+def test_javascript_reads_sessions_like_python(tmp_path):
+    from brainplug import sources
+    folder = tmp_path / "inputs"
+    homes = write_sessions(tmp_path / "homes")
+    (folder / "notes").mkdir(parents=True)
+    (folder / "notes" / "plan.md").write_text("a plan for the tide pool survey with salinity and temperature", encoding="utf-8")
+    for name, home in homes.items():  # dropped as folders, the way the web app gets them
+        shutil.copytree(home, folder / name)
+    py = sources.load([folder / "claude", folder / "codex", folder / "notes"])
+    subprocess.run([NODE, str(ROOT / "tests" / "js" / "run_engine.mjs"), str(folder), str(tmp_path / "js.json"),
+                    "--topics", "2"], check=True, env=ENV, capture_output=True)
+    js = json.loads((tmp_path / "js.json").read_text(encoding="utf-8"))
+    assert sorted(i.source for i in py) == ["claudecode", "codex", "notes"]
+    assert js["numbers"]["items"] == 3 and js["numbers"]["words"] == sum(i.words for i in py)
+    assert {s["id"] for s in js["numbers"]["sources"]} == {"claudecode", "codex", "notes"}

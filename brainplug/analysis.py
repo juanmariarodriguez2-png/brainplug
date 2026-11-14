@@ -28,7 +28,7 @@ SOURCE_NAMES = {
     "chatgpt": "ChatGPT", "claude": "Claude", "gemini": "Gemini", "copilot": "Copilot",
     "perplexity": "Perplexity", "obsidian": "Obsidian", "notion": "Notion", "notes": "Notes",
     "word": "Word", "pdf": "PDF", "gmail": "Gmail", "whatsapp": "WhatsApp", "memory": "Memory",
-    "demo": "Demo",
+    "demo": "Demo", "claudecode": "Claude Code", "codex": "Codex",
 }
 TOKEN_PATTERN = r"(?u)\b[^\W\d_][^\W\d_]+\b"
 

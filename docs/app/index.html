@@ -329,7 +329,7 @@ $('remind').onclick = () => {
 };
 
 // ---------------------------------------------------------------- inputs
-const WANTED = /\.(md|markdown|txt|json|html|mbox|zip|docx|pdf)$/i;
+const WANTED = /\.(md|markdown|txt|json|jsonl|html|mbox|zip|docx|pdf)$/i;
 const size = n => (n < 1e6 ? `${Math.max(1, Math.round(n / 1e3))} KB` : n < 1e9 ? `${(n / 1e6).toFixed(1)} MB` : `${(n / 1e9).toFixed(2)} GB`);
 
 function addGroup(name, inputs) {

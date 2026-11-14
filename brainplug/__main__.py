@@ -38,6 +38,7 @@ def _renames(pairs: list[str] | None) -> dict[int, str]:
 def _options(args) -> Options:
     return Options(
         inputs=list(args.inputs), out=args.out, me=list(args.me or []), pdf=args.pdf, notion=args.notion,
+        sessions=args.sessions,
         topics=args.topics, private=args.private, rename=_renames(args.rename), title=args.title,
         lang=args.lang, tz=args.tz, vault=args.vault, json=args.json, dataset=args.dataset,
     )
@@ -70,6 +71,8 @@ def main(argv: list[str] | None = None) -> int:
                        help="also read PDFs found inside folders and ZIPs (PDFs you pass directly always count)")
         p.add_argument("--notion", action="store_true",
                        help="also read Notion through its API, with real creation dates (set NOTION_TOKEN)")
+        p.add_argument("--sessions", action="store_true",
+                       help="also read your Claude Code and Codex sessions on this computer (only what you typed)")
 
     def extras(p):
         p.add_argument("--vault", metavar="DIR",
@@ -147,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         from . import memory
         from .agent import Brain, cache_file, make_server
         vault = getattr(args, "brain", None) or getattr(args, "vault", None)
-        if args.cmd == "mcp" and not args.inputs and not args.notion and not vault:
+        if args.cmd == "mcp" and not args.inputs and not args.notion and not vault and not args.sessions:
             ap.error("mcp needs your vault or your files, e.g.: brainplug mcp --brain ~/Vault export.zip")
         if args.cmd == "brain" and args.remember:
             path = memory.remember(vault, args.remember, kind=args.kind, pin=args.pin, source="me")
@@ -162,6 +165,9 @@ def main(argv: list[str] | None = None) -> int:
             vault = str(Path(vault).expanduser().resolve())
             if vault not in [str(Path(p).expanduser().resolve()) for p in inputs]:
                 inputs.insert(0, vault)
+        if args.sessions:  # watched like any other folder, so new sessions come in as you work
+            from .sources import session_folders
+            inputs += [str(p) for p in session_folders() if str(p) not in inputs]
         missing = next((p for p in inputs if not Path(p).expanduser().exists()), None)
         if missing:
             ap.error(f"Not found: {missing}")
@@ -202,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "sync":
             from . import sync
             if args.init:
-                if not args.inputs and not args.notion:
+                if not args.inputs and not args.notion and not args.sessions:
                     ap.error("sync --init needs your files and folders")
                 path = sync.write_config(_options(args), args.config)
                 print(f"Saved {path.resolve()}. Now run: brainplug sync   (or: brainplug sync --watch)")
@@ -218,8 +224,8 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             o = sync.read_config(args.config)
         else:
-            if not args.inputs and not args.notion:
-                ap.error("build needs at least one file or folder (or --notion)")
+            if not args.inputs and not args.notion and not args.sessions:
+                ap.error("build needs at least one file or folder (or --notion, --sessions)")
             o = _options(args)
         run(o)
     except (FileNotFoundError, ValueError) as err:

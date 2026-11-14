@@ -185,6 +185,83 @@ export function parseGeminiHtml(markup) {
   return geminiItems(prompts);
 }
 
+// ---------------------------------------------- coding agents: Claude Code and Codex
+// Text the tools put on your side of a session: environment blocks, instructions, command echoes.
+const INJECTED = /^\s*(?:<[a-z][\w-]*(?:\s[^<>]*)?>|# AGENTS\.md instructions|Caveat: The messages below|\[Request interrupted)/i;
+// Keys and tokens people paste into a coding session by mistake.
+export const SECRET = /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----|\b(?:sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})/g;
+const typed = value => {
+  const text = String(value ?? '').trim();
+  return !text || INJECTED.test(text) ? '' : text.replace(SECRET, '[secret]');
+};
+const textBlocks = content => (typeof content === 'string' ? content
+  : (Array.isArray(content) ? content : []).filter(b => b && typeof b === 'object' && (b.type === 'text' || b.type === 'input_text')).map(b => b.text || '').join('\n'));
+
+// One Claude Code or Codex session log (JSON Lines). Keeps what you typed, never the agent's work.
+export function parseSession(text, fallbackId) {
+  let kind = '', sid = '', cwd = '', title = '', start = null, answers = 0;
+  let mine = []; const queued = [], events = [];
+  for (const raw of text.split('\n')) {
+    let obj;
+    try { obj = JSON.parse(raw); } catch { continue; }
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) continue;
+    const when = parseDate(obj.timestamp) ?? start;
+    if ('sessionId' in obj || obj.type === 'summary') {  // Claude Code
+      if (!kind && 'sessionId' in obj) kind = 'claudecode';
+      sid = obj.sessionId || sid; cwd = obj.cwd || cwd;
+      if (obj.type === 'summary') title = title || String(obj.summary || '');
+      else if (obj.type === 'user' && !obj.isSidechain && !obj.isMeta) {
+        const t = typed(textBlocks((obj.message || {}).content));
+        if (t && when !== null) mine.push([when, t]);
+      } else if (obj.type === 'queue-operation' && obj.operation === 'enqueue') {
+        const t = typed(textBlocks(obj.content));  // typed while the agent was working
+        if (t && when !== null) queued.push([when, t]);
+      } else if (obj.type === 'attachment' && obj.attachment && obj.attachment.type === 'queued_command') {
+        const sent = obj.attachment;  // a message delivered while it worked, e.g. with a screenshot
+        if (sent.humanTurn === true || (sent.origin || {}).kind === 'human') {
+          const t = typed(textBlocks(sent.prompt));
+          if (t && when !== null) queued.push([when, t]);
+        }
+      } else if (obj.type === 'assistant' && !obj.isSidechain) answers += textBlocks((obj.message || {}).content).trim() ? 1 : 0;
+      continue;
+    }
+    const p = obj.payload && typeof obj.payload === 'object' && !Array.isArray(obj.payload) ? obj.payload : obj;  // Codex, new and old logs
+    if (obj.type === 'session_meta' || ('instructions' in obj && 'id' in obj)) {
+      kind = 'codex'; sid = String(p.id || sid); cwd = String(p.cwd || cwd);
+      start = parseDate(p.timestamp) ?? start;
+      continue;
+    }
+    const at = when ?? start;
+    if (p.type === 'message' && p.role === 'user') {
+      const t = typed(textBlocks(p.content));
+      if (t && at !== null) mine.push([at, t]);
+    } else if (p.type === 'message' && p.role === 'assistant') answers++;
+    else if (p.type === 'user_message') {
+      const t = typed(p.message);
+      if (t && at !== null) events.push([at, t]);
+    }
+  }
+  if (!kind) return null;
+  if (kind === 'codex' && !mine.length) mine = events;  // older logs only record what you typed as events
+  const left = new Map();
+  for (const [, t] of mine) left.set(squash(t), (left.get(squash(t)) || 0) + 1);
+  const seen = new Set();
+  for (const [w, t] of queued) {  // a message typed while the agent worked is logged more than once
+    const key = squash(t);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const n = left.get(key) || 0;
+    if (n) left.set(key, n - 1); else mine.push([w, t]);
+  }
+  mine.sort((a, b) => a[0] - b[0]);
+  if (!mine.length) return null;
+  const project = cwd ? cwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() : '';
+  const first = squash(title || mine[0][1]);
+  const name = first.slice(0, 70) + (first.length > 70 ? '…' : '');
+  return item(`${kind}:${sid || fallbackId}`, project ? `${project} · ${name}` : name, mine[0][0], kind, 'chat',
+    mine.map(m => m[1]).join('\n'), { parts: mine.map(m => m[0]), msgs: mine.map(m => m[1]), size: mine.length + answers });
+}
+
 // ---------------------------------------------------------- live capture
 export function parseCapture(data) {
   const groups = new Map();
@@ -631,6 +708,10 @@ async function loadFile(file, rel, ctx, { noteSource = 'notes', inside = false, 
   }
   if (ext === '.html') return !inside || wantedHtml(rel) ? parseGeminiHtml(await file.text()) : [];
   if (ext === '.mbox') return loadGmail(file, ctx.emails);
+  if (ext === '.jsonl') {  // a Claude Code or Codex session
+    const session = parseSession(await file.text(60000000), stem(file.path));
+    return session ? [session] : [];
+  }
   if (ext === '.zip') return loadZip(file, ctx);
   if (ext === '.docx') { const doc = baseName(file.path).startsWith('~$') ? null : await parseDocx(file, rel); return doc ? [doc] : []; }
   if (ext === '.pdf') {

@@ -187,3 +187,51 @@ def write_overlap(out: Path) -> None:
                        ("B", "notes about marathon training blocks and long runs")):
         (out / name).mkdir(exist_ok=True)
         (out / name / "2025-03-05.md").write_text(f"{text}\n", encoding="utf-8")
+
+
+def write_sessions(out: Path) -> dict[str, Path]:
+    """A Claude Code session and a Codex session, shaped like the real logs, with invented words."""
+    claude = out / "claude" / "projects" / "-home-ana-tidepool"
+    codex = out / "codex" / "sessions" / "2026" / "03" / "02"
+    claude.mkdir(parents=True, exist_ok=True)
+    codex.mkdir(parents=True, exist_ok=True)
+    sid, cwd = "5f1c2a9e-0000-4000-8000-00000000c1a0", "/home/ana/tidepool"
+
+    def cc(kind, when, **more):
+        return {"type": kind, "sessionId": sid, "cwd": cwd, "timestamp": f"2026-03-01T{when}Z", **more}
+    lines = [
+        {"type": "summary", "summary": "Tide pool sensor dashboard", "leafUuid": "x"},
+        cc("user", "10:00:00", message={"role": "user", "content": "build a dashboard for the tide pool salinity sensors"}),
+        cc("assistant", "10:00:05", message={"role": "assistant", "content": [{"type": "text", "text": "ASSISTANTWORD sure"}]}),
+        cc("user", "10:00:06", message={"role": "user", "content": [{"type": "tool_result", "content": "TOOLWORD output"}]}),
+        cc("user", "10:00:07", isMeta=True, message={"role": "user", "content": "[Image: METAWORD]"}),
+        cc("user", "10:00:08", message={"role": "user", "content": "<command-name>/clear</command-name> COMMANDWORD"}),
+        cc("user", "10:00:09", isSidechain=True, message={"role": "user", "content": "SIDECHAINWORD a subagent prompt"}),
+        cc("queue-operation", "10:01:00", operation="enqueue", content="also chart the water temperature per hour"),
+        cc("user", "10:02:00", message={"role": "user", "content": "also chart the water temperature per hour"}),
+        cc("queue-operation", "10:03:00", operation="enqueue", content="use the key sk-proj-abcdefghijklmnopqrstuvwx1234 for the API"),
+        cc("attachment", "10:04:00", attachment={"type": "queued_command", "humanTurn": True, "commandMode": "prompt",
+           "origin": {"kind": "human"}, "prompt": [{"type": "image", "source": {}},
+                                                  {"type": "text", "text": "the chart in this screenshot is upside down"}]}),
+        cc("queue-operation", "10:04:00", operation="enqueue", content="the chart in this screenshot is upside down"),
+        cc("attachment", "10:05:00", attachment={"type": "queued_command", "commandMode": "task-notification",
+           "origin": {"kind": "task-notification"}, "prompt": "NOTIFYWORD a background task finished"}),
+    ]
+    (claude / f"{sid}.jsonl").write_text("\n".join(json.dumps(x) for x in lines) + "\n", encoding="utf-8")
+
+    rows = [
+        {"timestamp": "2026-03-02T09:00:00Z", "type": "session_meta",
+         "payload": {"id": "019c0000-aaaa-7bbb-8ccc-codex0000001", "timestamp": "2026-03-02T09:00:00Z", "cwd": "/home/ana/kelp"}},
+        {"timestamp": "2026-03-02T09:00:01Z", "type": "response_item", "payload": {"type": "message", "role": "user",
+         "content": [{"type": "input_text", "text": "<environment_context><cwd>/home/ana/kelp</cwd> ENVWORD</environment_context>"}]}},
+        {"timestamp": "2026-03-02T09:00:02Z", "type": "response_item", "payload": {"type": "message", "role": "user",
+         "content": [{"type": "input_text", "text": "write a script that counts sea urchins in the kelp survey photos"}]}},
+        {"timestamp": "2026-03-02T09:00:03Z", "type": "event_msg", "payload": {"type": "user_message",
+         "message": "write a script that counts sea urchins in the kelp survey photos"}},
+        {"timestamp": "2026-03-02T09:00:09Z", "type": "response_item", "payload": {"type": "message", "role": "assistant",
+         "content": [{"type": "output_text", "text": "ASSISTANTWORD done"}]}},
+        {"timestamp": "2026-03-02T09:00:10Z", "type": "response_item", "payload": {"type": "reasoning", "summary": []}},
+    ]
+    path = codex / "rollout-2026-03-02T09-00-00-019c0000-aaaa-7bbb-8ccc-codex0000001.jsonl"
+    path.write_text("\n".join(json.dumps(x) for x in rows) + "\n", encoding="utf-8")
+    return {"claude": out / "claude", "codex": out / "codex"}

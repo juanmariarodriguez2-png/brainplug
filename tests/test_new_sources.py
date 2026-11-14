@@ -8,7 +8,7 @@ import pytest
 
 from brainplug import notion_api, sources
 from helpers import tiny_docx, tiny_pdf
-from make_inputs import write_overlap
+from make_inputs import write_overlap, write_sessions
 
 GEMINI = [
     {"header": "Gemini Apps", "title": "Prompted how do I interpret a p-value in a regression?",
@@ -96,6 +96,30 @@ def test_same_name_in_two_folders_keeps_both_notes(tmp_path):
     items = sources.load([tmp_path / "A", tmp_path / "B", tmp_path / "A"])  # A twice: still one copy of it
     assert sorted("bakery" in i.text for i in items) == [False, True]
     assert len({i.id for i in items}) == 2
+
+
+def test_claude_code_and_codex_sessions_keep_only_what_you_typed(tmp_path, monkeypatch):
+    homes = write_sessions(tmp_path)
+    items = {i.source: i for i in sources.load([homes["claude"] / "projects", homes["codex"] / "sessions"])}
+    claude, codex = items["claudecode"], items["codex"]
+    assert claude.msgs == ["build a dashboard for the tide pool salinity sensors",
+                           "also chart the water temperature per hour",  # typed while it worked: logged twice, kept once
+                           "use the key [secret] for the API",  # a pasted key is masked
+                           "the chart in this screenshot is upside down"]  # sent with a screenshot, logged twice
+    assert claude.title == "tidepool · Tide pool sensor dashboard" and claude.id.startswith("claudecode:5f1c2a9e")
+    assert codex.msgs == ["write a script that counts sea urchins in the kelp survey photos"]
+    assert codex.title.startswith("kelp · write a script") and codex.created.isoformat().startswith("2026-03-02T09:00:02")
+    words = " ".join(i.text for i in items.values())
+    for leaked in ("ASSISTANTWORD", "TOOLWORD", "METAWORD", "COMMANDWORD", "SIDECHAINWORD", "ENVWORD", "abcdefghij",
+                   "NOTIFYWORD"):
+        assert leaked not in words
+
+    # --sessions finds both folders where the tools keep them
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(homes["claude"]))
+    monkeypatch.setenv("CODEX_HOME", str(homes["codex"]))
+    assert sources.session_folders() == [homes["claude"] / "projects", homes["codex"] / "sessions"]
+    from brainplug.pipeline import Options, load
+    assert {i.source for i in load(Options(sessions=True), say=lambda _: None)} == {"claudecode", "codex"}
 
 
 def test_whatsapp_keeps_only_my_messages(tmp_path):

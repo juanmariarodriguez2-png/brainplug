@@ -5,6 +5,8 @@ Supported inputs (files, folders or ZIPs, in any mix):
 * ChatGPT and Claude exports  -> ``conversations.json`` (or the export ZIP)
 * Gemini via Google Takeout   -> ``MyActivity.json`` (or the Takeout ZIP)
 * Live capture                -> the JSON saved by the Brainplug browser extension
+* Claude Code and Codex       -> their session logs (``~/.claude/projects``, ``~/.codex/sessions``):
+                                 what you typed, never the agent's work, with pasted keys masked
 * Obsidian vaults / any folder of Markdown or text notes
 * Notion exports ("Markdown & CSV"); see ``notion_api`` for real creation dates
 * Gmail via Google Takeout    -> ``.mbox`` (only the mail *you* sent)
@@ -542,6 +544,124 @@ def parse_gemini_html(markup: str) -> list[Item]:
 
 
 # --------------------------------------------------------------------------- #
+# coding agents: Claude Code and Codex sessions (what you typed, not the agent's work)
+# --------------------------------------------------------------------------- #
+# Text the tools put on your side of a session: environment blocks, instructions, command echoes.
+_INJECTED = re.compile(r"^\s*(?:<[a-z][\w-]*(?:\s[^<>]*)?>|# AGENTS\.md instructions|Caveat: The messages below|"
+                       r"\[Request interrupted)", re.I)
+# Keys and tokens people paste into a coding session by mistake.
+SECRET = re.compile(
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----"
+    r"|\b(?:sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}"
+    r"|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})")
+
+
+def _typed(text: Any) -> str:
+    """What you typed to a coding agent, with pasted keys masked; "" for text the tool added."""
+    text = str(text or "").strip()
+    return "" if not text or _INJECTED.match(text) else SECRET.sub("[secret]", text)
+
+
+def _text_blocks(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    return "\n".join(b.get("text", "") for b in content or []
+                     if isinstance(b, dict) and b.get("type") in ("text", "input_text"))
+
+
+def parse_session(path: Path) -> Item | None:
+    """One Claude Code or Codex session log (JSON Lines), read in one pass."""
+    kind, sid, cwd, title, start = "", "", "", "", None
+    typed: list[tuple[datetime, str]] = []
+    queued: list[tuple[datetime, str]] = []
+    events: list[tuple[datetime, str]] = []
+    answers = 0
+    with open(path, encoding="utf-8", errors="ignore") as fh:
+        for raw in fh:
+            try:
+                obj = json.loads(raw)
+            except ValueError:
+                continue
+            if not isinstance(obj, dict):
+                continue
+            when = parse_date(obj.get("timestamp")) or start
+            if "sessionId" in obj or obj.get("type") == "summary":  # Claude Code
+                kind = kind or ("claudecode" if "sessionId" in obj else "")
+                sid, cwd = obj.get("sessionId") or sid, obj.get("cwd") or cwd
+                t = obj.get("type")
+                if t == "summary":
+                    title = title or str(obj.get("summary") or "")
+                elif t == "user" and not obj.get("isSidechain") and not obj.get("isMeta"):
+                    text = _typed(_text_blocks((obj.get("message") or {}).get("content")))
+                    if text and when:
+                        typed.append((when, text))
+                elif t == "queue-operation" and obj.get("operation") == "enqueue":
+                    text = _typed(_text_blocks(obj.get("content")))  # typed while the agent was working
+                    if text and when:
+                        queued.append((when, text))
+                elif t == "attachment" and (obj.get("attachment") or {}).get("type") == "queued_command":
+                    sent = obj["attachment"]  # a message delivered while it worked, e.g. with a screenshot
+                    if sent.get("humanTurn") is True or (sent.get("origin") or {}).get("kind") == "human":
+                        text = _typed(_text_blocks(sent.get("prompt")))
+                        if text and when:
+                            queued.append((when, text))
+                elif t == "assistant" and not obj.get("isSidechain"):
+                    answers += bool(_text_blocks((obj.get("message") or {}).get("content")).strip())
+                continue
+            p = obj["payload"] if isinstance(obj.get("payload"), dict) else obj  # Codex, new and old logs
+            if obj.get("type") == "session_meta" or ("instructions" in obj and "id" in obj):
+                kind, sid, cwd = "codex", str(p.get("id") or sid), str(p.get("cwd") or cwd)
+                start = parse_date(p.get("timestamp")) or start
+                continue
+            if p.get("type") == "message" and p.get("role") == "user":
+                text = _typed(_text_blocks(p.get("content")))
+                if text and (when or start):
+                    typed.append((when or start, text))
+            elif p.get("type") == "message" and p.get("role") == "assistant":
+                answers += 1
+            elif p.get("type") == "user_message":
+                text = _typed(p.get("message"))
+                if text and (when or start):
+                    events.append((when or start, text))
+    if not kind:
+        return None
+    if kind == "codex" and not typed:
+        typed = events  # older logs only record what you typed as events
+    left, seen = Counter(_squash(t) for _, t in typed), set()
+    for when, text in queued:  # a message typed while the agent worked is logged more than once
+        key = _squash(text)
+        if key in seen:
+            continue
+        seen.add(key)
+        if left[key]:
+            left[key] -= 1
+        else:
+            typed.append((when, text))
+    mine = sorted(typed, key=lambda m: m[0])
+    if not mine:
+        return None
+    project = re.split(r"[\\/]", cwd.rstrip("\\/"))[-1] if cwd else ""
+    first = _squash(title or mine[0][1])
+    name = first[:70] + ("…" if len(first) > 70 else "")
+    return Item(
+        id=f"{kind}:{sid or path.stem}", title=f"{project} · {name}" if project else name, created=mine[0][0],
+        source=kind, kind="chat", text="\n".join(t for _, t in mine), parts=[w for w, _ in mine],
+        msgs=[t for _, t in mine], size=len(mine) + answers,
+    )
+
+
+def _squash(text: str) -> str:
+    return " ".join(str(text).split())
+
+
+def session_folders() -> list[Path]:
+    """Where Claude Code and Codex keep their session logs on this computer (those that exist)."""
+    claude = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude").expanduser() / "projects"
+    codex = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex").expanduser() / "sessions"
+    return [p for p in (claude, codex) if p.is_dir()]
+
+
+# --------------------------------------------------------------------------- #
 # live capture (the Brainplug browser extension)
 # --------------------------------------------------------------------------- #
 def parse_capture(data: dict) -> list[Item]:
@@ -812,6 +932,9 @@ class _Loader:
             return parse_gemini_html(_read_all(path)) if (not inside or ("gemini" in low and "activ" in low)) else []
         if suffix == ".mbox":
             return load_gmail(path, self.emails)
+        if suffix == ".jsonl":
+            session = parse_session(path)
+            return [session] if session else []
         if suffix == ".zip":
             return self.zip(path)
         if suffix == ".docx":
