@@ -8,6 +8,8 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from test_new_sources import ZIP_SAFETY_CASES
+
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -146,3 +148,25 @@ def test_javascript_reads_sessions_like_python(tmp_path):
     assert sorted(i.source for i in py) == ["claudecode", "codex", "notes"]
     assert js["numbers"]["items"] == 3 and js["numbers"]["words"] == sum(i.words for i in py)
     assert {s["id"] for s in js["numbers"]["sources"]} == {"claudecode", "codex", "notes"}
+
+
+@pytest.mark.skipif(not NODE, reason="needs Node.js")
+@pytest.mark.parametrize("case", ZIP_SAFETY_CASES)
+def test_javascript_zip_safety_matches_python(tmp_path, monkeypatch, case):
+    from brainplug import sources
+    from test_new_sources import patch_zip_limits, zip_safety_input
+
+    path, limits, reason, count = zip_safety_input(tmp_path, case)
+    patch_zip_limits(monkeypatch, limits)
+    notes = []
+    py = sources.load([path, path], notes=notes)
+    done = subprocess.run([NODE, str(ROOT / "tests/js/zip_safety.mjs"), str(path), json.dumps(limits)],
+                          check=True, env=ENV, capture_output=True, text=True, timeout=30)
+    js = json.loads(done.stdout)
+    assert js["count"] == len(py) == count
+    if reason:
+        assert any(reason in note and "skipped" in note for note in notes), notes
+        assert any(reason in note and "skipped" in note for note in js["notes"]), js
+    else:
+        assert notes == js["notes"] == []
+    assert "research research" not in js["text"]

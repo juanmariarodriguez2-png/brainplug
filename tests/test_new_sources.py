@@ -226,3 +226,129 @@ def test_notion_api_gives_real_dates():
     assert calls[1][2:] == ("Bearer secret_x", "2022-06-28") and calls[2][1] == "p2"
     with pytest.raises(notion_api.NotionError):
         notion_api.load_notion("")
+
+
+ZIP_SAFETY_LIMITS = {
+    "depth": 2, "entries": 6, "ratioMinBytes": 128, "ratio": 10,
+    "bytes": 100_000, "directoryBytes": 100_000,
+}
+ZIP_SAFETY_CASES = [
+    "normal", "chatgpt", "zip64", "declared-partial", "unsupported", "ratio", "depth", "declared-stored",
+    "declared-deflated", "entries", "nested-entries", "budget", "nested-budget", "directory", "forged-count",
+]
+
+
+def zip_safety_input(tmp_path, case):
+    """Small hostile fixtures shared by the Python and Node tests."""
+    import io
+    import struct
+    import zlib
+
+    text = b"My research plan compares sea water temperature and salinity in the tide pools."
+    limits = dict(ZIP_SAFETY_LIMITS)
+
+    def archive(entries, compression=zipfile.ZIP_DEFLATED):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", compression=compression) as zf:
+            for name, data in entries:
+                zf.writestr(name, data)
+        return buf.getvalue()
+
+    reason, count = "", 1
+    data = archive([("plan.md", text)])
+    if case == "chatgpt":
+        export = [{"id": "safe", "title": "Research", "create_time": 1735732800, "mapping": {
+            "m": {"message": {"author": {"role": "user"}, "content": {"parts": [text.decode()]}}}}}]
+        data = archive([("conversations.json", json.dumps(export))])
+    elif case == "zip64":
+        # A small ZIP with a real ZIP64 directory trailer, as used by big exports.
+        eocd = bytearray(data[-22:])
+        cd_size, cd_offset = struct.unpack_from("<II", eocd, 12)
+        record_at = len(data) - 22
+        record = struct.pack("<IQHHIIQQQQ", 0x06064B50, 44, 45, 45, 0, 0, 1, 1, cd_size, cd_offset)
+        locator = struct.pack("<IIQI", 0x07064B50, 0, record_at, 1)
+        struct.pack_into("<HHII", eocd, 8, 0xFFFF, 0xFFFF, 0xFFFFFFFF, 0xFFFFFFFF)
+        data = data[:-22] + record + locator + eocd
+    elif case == "unsupported":
+        data = archive([("plan.md", text)], zipfile.ZIP_BZIP2)
+        reason, count = "unsupported", 0
+    elif case == "ratio":
+        data = archive([("bomb.txt", b"research " * 1024), ("plan.md", text)])
+        reason = "compression ratio"
+    elif case == "depth":
+        data = archive([("middle.zip", archive([("inner.zip", data)])), ("plan.md", text)])
+        reason = "nesting depth"
+    elif case.startswith("declared-"):
+        # Forge both the size and a valid CRC for the declared prefix. A reader
+        # that silently truncates at the declared size would accept this entry.
+        payload = b"research " * 1024
+        declared = 4096 if case == "declared-partial" else 32
+        if case == "declared-partial":
+            limits["ratioMinBytes"] = 100_000  # exercise the streaming check
+        compression = zipfile.ZIP_STORED if case.endswith("stored") else zipfile.ZIP_DEFLATED
+        bad = bytearray(archive([("bomb.txt", payload)], compression))
+        cd = bad.index(b"PK\x01\x02")
+        for crc_at, size_at in ((14, 22), (cd + 16, cd + 24)):
+            struct.pack_into("<I", bad, crc_at, zlib.crc32(payload[:declared]))
+            struct.pack_into("<I", bad, size_at, declared)
+        # Keep a good sibling to prove one bad entry doesn't stop the archive.
+        data = archive([("bad.zip", bad), ("plan.md", text)], zipfile.ZIP_STORED)
+        reason = "declared size"
+    elif case in ("entries", "forged-count"):
+        data = archive([(f"ignored{i}.bin", b"") for i in range(7)])
+        if case == "forged-count":
+            bad = bytearray(data)
+            eocd = bad.index(b"PK\x05\x06")
+            struct.pack_into("<HH", bad, eocd + 8, 1, 1)
+            data = bytes(bad)
+        reason, count = "entry count", 0
+    elif case == "nested-entries":
+        inner = archive([(f"ignored{i}.bin", b"") for i in range(5)] + [("plan.md", text)])
+        data = archive([("inner.zip", inner)])
+        reason, count = "entry count", 0
+    elif case == "budget":
+        limits["bytes"] = len(text)
+        data = archive([("a.md", text), ("b.md", text)])
+        reason = "byte budget"
+    elif case == "nested-budget":
+        inner = archive([("plan.md", text)])
+        limits["bytes"] = len(inner) + len(text) - 1
+        data = archive([("inner.zip", inner)])
+        reason, count = "byte budget", 0
+    elif case == "directory":
+        limits["directoryBytes"] = 46
+        reason, count = "central directory", 0
+    path = tmp_path / "export.zip"
+    path.write_bytes(data)
+    return path, limits, reason, count
+
+
+def patch_zip_limits(monkeypatch, limits):
+    for key, name in {"depth": "MAX_ZIP_DEPTH", "entries": "MAX_ZIP_ENTRIES", "ratioMinBytes": "ZIP_RATIO_MIN_BYTES",
+                      "ratio": "MAX_ZIP_RATIO", "bytes": "MAX_ZIP_BYTES", "directoryBytes": "MAX_ZIP_DIRECTORY_BYTES"}.items():
+        monkeypatch.setattr(sources, name, limits[key])
+
+
+@pytest.mark.parametrize("case", ZIP_SAFETY_CASES)
+def test_zip_safety_limits(tmp_path, monkeypatch, case):
+    path, limits, reason, count = zip_safety_input(tmp_path, case)
+    patch_zip_limits(monkeypatch, limits)
+    monkeypatch.setattr(sources, "ZIP_COPY_CHUNK", 1024)
+    notes = []
+    items = sources.load([path], notes=notes)
+    assert len(items) == count
+    if reason:
+        assert any(reason in note and "skipped" in note for note in notes), notes
+    else:
+        assert notes == []
+    assert all("research research" not in item.text for item in items)
+
+
+def test_zip_budgets_reset_between_top_level_inputs(tmp_path, monkeypatch):
+    path, limits, _, _ = zip_safety_input(tmp_path, "normal")
+    limits["entries"] = 1
+    limits["bytes"] = 80
+    patch_zip_limits(monkeypatch, limits)
+    notes = []
+    assert len(sources.load([path, path], notes=notes)) == 1  # duplicate items merge
+    assert notes == []

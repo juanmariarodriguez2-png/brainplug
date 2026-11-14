@@ -22,6 +22,7 @@ PDF files are the exception: they are read whole, so only add your own.
 
 from __future__ import annotations
 
+import copy
 import email
 import html
 import json
@@ -29,6 +30,7 @@ import os
 import re
 import tempfile
 import zipfile
+import zlib
 from collections import Counter
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
@@ -40,6 +42,13 @@ from typing import Any, Callable, Iterable, Iterator
 NOTE_SUFFIXES = {".md", ".markdown", ".txt"}
 SKIP_DIRS = {"node_modules", "templates", "Templates", "__MACOSX"}
 MAX_NOTE_BYTES = 400_000
+MAX_ZIP_DEPTH = 4  # the top-level ZIP is depth 1
+MAX_ZIP_ENTRIES = 500_000
+ZIP_RATIO_MIN_BYTES = 100 * 1024**2
+MAX_ZIP_RATIO = 1000
+MAX_ZIP_BYTES = 50 * 1024**3  # shared by all descendants of one top-level ZIP
+MAX_ZIP_DIRECTORY_BYTES = 128 * 1024**2
+ZIP_COPY_CHUNK = 1024**2
 NOTION_ID = re.compile(r"\s[0-9a-f]{32}$")
 
 
@@ -859,7 +868,6 @@ def parse_pdf(path: Path, rel: Path) -> Item | None:
 # --------------------------------------------------------------------------- #
 # entry point: files, folders and ZIPs
 # --------------------------------------------------------------------------- #
-_TEMP: list[tempfile.TemporaryDirectory] = []
 _ZIP_KEEP = NOTE_SUFFIXES | {".mbox", ".zip", ".docx", ".pdf", ".json", ".html"}
 
 
@@ -890,27 +898,109 @@ class _Loader:
             return []
 
     def zip(self, path: Path) -> list[Item]:
-        with zipfile.ZipFile(path) as zf:
-            names = zf.namelist()
-            tmp = tempfile.TemporaryDirectory(prefix="brainplug_")
-            _TEMP.append(tmp)
-            root = Path(tmp.name)
-            for info in zf.infolist():
-                suffix = Path(info.filename).suffix.lower()
-                if info.is_dir() or suffix not in _ZIP_KEEP:
-                    continue
-                low = info.filename.lower()
-                if (suffix == ".json" and not _wanted_json(low)) or \
-                        (suffix == ".html" and not ("gemini" in low and "activ" in low)):
-                    continue
-                target = Path(zf.extract(info, root))  # extract() strips "../" and absolute paths
-                try:
-                    stamp = datetime(*info.date_time).timestamp()
-                    os.utime(target, (stamp, stamp))
-                except (ValueError, OSError):
-                    pass
-            is_vault = any("/.obsidian/" in "/" + n for n in names)
-        return self.folder(root, is_vault, hint=path.stem)
+        depth = getattr(self, "_zip_depth", 0)
+        if depth == 0:
+            self._zip_entries = 0
+            self._zip_bytes = 0
+
+        def skip(name: str, why: str) -> None:
+            self.notes.append(f"ZIP: skipped {name} ({why}).")
+
+        if depth >= MAX_ZIP_DEPTH:
+            skip(path.name, "nesting depth limit")
+            return []
+        self._zip_depth = depth + 1
+        try:
+            # ZipFile eagerly allocates the central directory. Inspect it with bounded
+            # reads first; count actual records rather than trusting the EOCD count.
+            with path.open("rb") as fh:
+                end = zipfile._EndRecData(fh)
+                if not end:
+                    raise zipfile.BadZipFile("Not a ZIP file")
+                size = end[zipfile._ECD_SIZE]
+                if size > MAX_ZIP_DIRECTORY_BYTES:
+                    skip(path.name, "central directory byte limit")
+                    return []
+                start = end[zipfile._ECD_LOCATION] - size
+                fh.seek(max(0, start))
+                if fh.read(4) != b"PK\x01\x02" and end[0] == b"PK\x06\x06":
+                    start -= 76  # older Python versions leave the ZIP64 trailer here
+                fh.seek(max(0, start))
+                examined = 0
+                while examined < size:
+                    if self._zip_entries >= MAX_ZIP_ENTRIES:
+                        skip(path.name, "entry count limit")
+                        return []
+                    head = fh.read(46)
+                    if len(head) != 46 or head[:4] != b"PK\x01\x02":
+                        raise zipfile.BadZipFile("Damaged central directory")
+                    self._zip_entries += 1
+                    extra = sum(int.from_bytes(head[i:i + 2], "little") for i in (28, 30, 32))
+                    fh.seek(extra, 1)
+                    examined += 46 + extra
+            with zipfile.ZipFile(path) as zf, tempfile.TemporaryDirectory(prefix="brainplug_") as tmp:
+                root = Path(tmp)
+                for info in zf.infolist():
+                    suffix = Path(info.filename).suffix.lower()
+                    if info.is_dir() or suffix not in _ZIP_KEEP:
+                        continue
+                    low = info.filename.lower()
+                    if (suffix == ".json" and not _wanted_json(low)) or \
+                            (suffix == ".html" and not ("gemini" in low and "activ" in low)):
+                        continue
+                    why = None
+                    if suffix == ".zip" and self._zip_depth >= MAX_ZIP_DEPTH:
+                        why = "nesting depth limit"
+                    elif info.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
+                        # Older Python ZipExtFile versions inflate BZIP2/LZMA in
+                        # unbounded calls, even when read() requests a small chunk.
+                        why = "unsupported compression for bounded extraction"
+                    elif info.file_size > ZIP_RATIO_MIN_BYTES and info.file_size > MAX_ZIP_RATIO * info.compress_size:
+                        why = "compression ratio limit"
+                    elif info.file_size > MAX_ZIP_BYTES - self._zip_bytes:
+                        why = "extracted byte budget"
+                    if why:
+                        skip(info.filename, why)
+                        continue
+                    # Match extract()'s path sanitization without its unbounded copy.
+                    name = info.filename.replace("/", os.path.sep)
+                    if os.path.altsep:
+                        name = name.replace(os.path.altsep, os.path.sep)
+                    parts = [p for p in os.path.splitdrive(name)[1].split(os.path.sep) if p not in ("", ".", "..")]
+                    if os.path.sep == "\\":
+                        parts = [zipfile.ZipFile._sanitize_windows_name(p, "\\") for p in parts]
+                    target = root.joinpath(*parts)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    written = 0
+                    try:
+                        # ZipExtFile otherwise silently truncates at file_size. Allow
+                        # one extra byte so even a forged CRC for a prefix is rejected.
+                        probe = copy.copy(info)
+                        probe.file_size = min(info.file_size, MAX_ZIP_BYTES - self._zip_bytes) + 1
+                        with zf.open(probe) as src, target.open("wb") as dst:
+                            while chunk := src.read(ZIP_COPY_CHUNK):
+                                if written + len(chunk) > info.file_size:
+                                    raise ValueError("output exceeds declared size")
+                                if len(chunk) > MAX_ZIP_BYTES - self._zip_bytes:
+                                    raise ValueError("extracted byte budget")
+                                self._zip_bytes += len(chunk)
+                                written += len(chunk)
+                                dst.write(chunk)
+                        if written != info.file_size:
+                            raise ValueError("output differs from declared size")
+                    except (ValueError, RuntimeError, NotImplementedError, zipfile.BadZipFile, zlib.error) as exc:
+                        target.unlink(missing_ok=True)
+                        skip(info.filename, f"invalid ZIP data or declared size: {exc}")
+                        continue
+                    try:
+                        stamp = datetime(*info.date_time).timestamp()
+                        os.utime(target, (stamp, stamp))
+                    except (ValueError, OSError):
+                        pass
+                is_vault = any("/.obsidian/" in "/" + i.filename for i in zf.infolist())
+                return self.folder(root, is_vault, hint=path.stem)
+        finally:
+            self._zip_depth = depth
 
     def folder(self, root: Path, is_vault: bool = False, hint: str = "") -> list[Item]:
         is_vault = is_vault or (root / ".obsidian").exists() or any(root.glob("*/.obsidian"))

@@ -2,7 +2,7 @@
 // A port of brainplug/sources.py that runs in the browser (and in Node, for tests).
 // Every loader keeps only your own words: your side of a chat, your notes, the text
 // you typed in an email, your side of a WhatsApp chat.
-import { blobFile, bytesFile, listZip, concat } from './zip.js';
+import { blobFile, bytesFile, listZip, concat, ZIP_LIMITS, ZipSkip } from './zip.js';
 
 export const MAX_NOTE = 400000;
 const NOTE_SUFFIXES = new Set(['.md', '.markdown', '.txt']);
@@ -660,9 +660,9 @@ export function whatsappItems(chats, me) {
 }
 
 // ------------------------------------------------------------ documents
-async function parseDocx(file, rel) {
+async function parseDocx(file, rel, ctx) {
   let entries;
-  try { entries = await listZip(file.blob || new Blob([await file.bytes()])); } catch { return null; }
+  try { entries = await listZip(file.blob || new Blob([await file.bytes()]), { note: ctx.note, archive: file.path }); } catch { return null; }
   const doc = entries.find(e => e.path === 'word/document.xml');
   if (!doc) return null;
   const xml = await doc.text();
@@ -713,7 +713,12 @@ async function loadFile(file, rel, ctx, { noteSource = 'notes', inside = false, 
     return session ? [session] : [];
   }
   if (ext === '.zip') return loadZip(file, ctx);
-  if (ext === '.docx') { const doc = baseName(file.path).startsWith('~$') ? null : await parseDocx(file, rel); return doc ? [doc] : []; }
+  if (ext === '.docx') {
+    try {
+      const doc = baseName(file.path).startsWith('~$') ? null : await parseDocx(file, rel, ctx);
+      return doc ? [doc] : [];
+    } catch (err) { if (!(err instanceof ZipSkip)) throw err; return []; }
+  }
   if (ext === '.pdf') {
     if (inside && !ctx.pdf) return [];  // PDFs in a folder are usually other people's writing
     const doc = await parsePdf(file, rel, ctx);
@@ -754,17 +759,25 @@ async function loadFolder(files, ctx, hint = '') {
   const out = [];
   for (const file of [...files].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))) {
     if (hiddenPath(file.path)) continue;
-    out.push(...await loadFile(file, file.path, ctx, { noteSource: isVault ? 'obsidian' : 'notes', inside: true, hint }));
+    try {
+      out.push(...await loadFile(file, file.path, ctx, { noteSource: isVault ? 'obsidian' : 'notes', inside: true, hint }));
+    } catch (err) { if (!(err instanceof ZipSkip)) throw err; }
   }
   return out;
 }
 
 async function loadZip(file, ctx) {
-  const blob = file.blob || new Blob([await file.bytes()]);
-  const keep = new Set([...NOTE_SUFFIXES, '.mbox', '.zip', '.docx', '.pdf', '.json', '.html']);
-  const all = await listZip(blob);
-  const wanted = all.filter(e => keep.has(suffix(e.path)) || ('/' + e.path).includes('/.obsidian/'));
-  return loadFolder(wanted, ctx, stem(file.path));
+  const depth = (ctx.zipDepth || 0) + 1;
+  if (depth > ZIP_LIMITS.depth) { ctx.note(`ZIP: skipped ${file.path} (nesting depth limit).`); return []; }
+  const state = ctx.zipState || { entries: 0, bytes: 0 };
+  try {
+    const blob = file.blob || new Blob([await file.bytes()]);
+    const keep = new Set([...NOTE_SUFFIXES, '.mbox', '.zip', '.docx', '.pdf', '.json', '.html']);
+    const wanted = name => keep.has(suffix(name)) && (suffix(name) !== '.json' || wantedJson(name))
+      && (suffix(name) !== '.html' || wantedHtml(name));
+    const all = await listZip(blob, { note: ctx.note, state, archive: file.path, wanted });
+    return await loadFolder(all, { ...ctx, zipDepth: depth, zipState: state }, stem(file.path));
+  } catch (err) { if (!(err instanceof ZipSkip)) throw err; return []; }
 }
 
 /**
