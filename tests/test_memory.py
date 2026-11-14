@@ -1,6 +1,7 @@
 """The memory an assistant can read and write: plain notes in your vault."""
 
 import json
+from pathlib import Path
 import re
 import threading
 import time
@@ -125,7 +126,9 @@ def test_brain_command(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "# Sobre mí" in (vault / "Brainplug" / "About me.md").read_text(encoding="utf-8")
     config = json.loads(next(line for line in out.splitlines() if '"mcpServers"' in line))
-    assert config["mcpServers"]["brainplug"]["args"] == ["mcp", "--brain", str(vault.resolve())]
+    entry = config["mcpServers"]["brainplug"]  # an absolute command: desktop apps do not see your PATH
+    assert entry["args"][-3:] == ["mcp", "--brain", str(vault.resolve())] and Path(entry["command"]).is_absolute()
+    assert f'brainplug connect "{vault}"' in out
     assert main(["brain", str(vault), "--remember", "Prefiero respuestas cortas", "--kind", "preference", "--pin"]) == 0
     assert main(["brain", str(vault), "--context"]) == 0
     assert "Keep in mind:\n- Prefiero respuestas cortas" in capsys.readouterr().out

@@ -5,6 +5,8 @@
     python -m brainplug sync --init export.zip ~/Vault && python -m brainplug sync --watch
     python -m brainplug brain ~/Vault            # a memory your AI can read and write
     python -m brainplug mcp --brain ~/Vault export.zip
+    python -m brainplug connect ~/Vault          # add it to Claude, Cursor, Codex… on this computer
+    python -m brainplug doctor ~/Vault           # check that everything works
     python -m brainplug demo --open
 """
 
@@ -125,7 +127,25 @@ def main(argv: list[str] | None = None) -> int:
                    help="do not keep the index in this computer's cache folder (slower starts)")
     reading(m)
 
+    c = sub.add_parser("connect", help="add your brain to the AI assistants on this computer (Claude, Cursor, Codex…)")
+    c.add_argument("vault", nargs="?", help="your vault (default: the Obsidian vault opened most recently)")
+    c.add_argument("inputs", nargs="*", help="exports to include as well, e.g. chatgpt-export.zip")
+    c.add_argument("--only", help="comma-separated: claude-desktop, claude-code, cursor, codex, windsurf, gemini, vscode, lmstudio")
+    c.add_argument("--sessions", action="store_true", help="also read your Claude Code and Codex sessions")
+    c.add_argument("--print", dest="dry", action="store_true", help="show what would change, and change nothing")
+
+    dr = sub.add_parser("doctor", help="check that your brain answers and your assistants are connected")
+    dr.add_argument("vault", nargs="?", help="your vault (default: the Obsidian vault opened most recently)")
+
     args = ap.parse_args(argv)
+
+    if args.cmd == "connect":
+        from .connect import connect
+        only = [s.strip() for s in (args.only or "").split(",") if s.strip()] or None
+        return connect(args.vault, args.inputs, only=only, sessions=args.sessions, dry=args.dry)
+    if args.cmd == "doctor":
+        from .connect import doctor
+        return doctor(args.vault)
 
     if args.cmd == "app":
         from .app import serve
@@ -172,14 +192,17 @@ def main(argv: list[str] | None = None) -> int:
         if missing:
             ap.error(f"Not found: {missing}")
         if args.cmd == "brain" and not args.context:
-            server = ["mcp", "--brain", vault]
+            from .connect import server_command
+            command, server = server_command(vault)
             print(f"Your brain lives in {base}\n"
                   f"  About me.md   a few lines about you; assistants read them at the start of a conversation\n"
                   f"  Memory/       what assistants are asked to remember, one note each\n\n"
-                  f"Connect an assistant\n"
-                  f"  Claude Code     claude mcp add --transport stdio brainplug -- brainplug mcp --brain \"{vault}\"\n"
-                  f"  Claude Desktop  Settings > Developer > Edit Config, and add:\n"
-                  f"                  {json.dumps({'mcpServers': {'brainplug': {'command': 'brainplug', 'args': server}}})}\n\n"
+                  f"Connect your assistants (Claude Desktop, Claude Code, Cursor, Codex…) in one step:\n"
+                  f"  brainplug connect \"{vault}\"\n\n"
+                  f"Or by hand. Claude Code:\n"
+                  f"  claude mcp add --scope user brainplug -- \"{command}\" {' '.join(server)}\n"
+                  f"Claude Desktop (Settings > Developer > Edit Config):\n"
+                  f"  {json.dumps({'mcpServers': {'brainplug': {'command': command, 'args': server}}})}\n\n"
                   f"Add your exports after the folder to make them part of the brain:\n"
                   f"  brainplug mcp --brain \"{vault}\" chatgpt-export.zip Sent.mbox\n\n"
                   f"For an assistant without MCP, print a briefing to paste:\n"
