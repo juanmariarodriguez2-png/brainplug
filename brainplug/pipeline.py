@@ -30,6 +30,7 @@ class Options:
     me: list[str] = field(default_factory=list)  # your email(s) and your WhatsApp name
     pdf: bool = False  # also read PDFs found inside folders
     notion: bool = False  # read Notion through its API (NOTION_TOKEN)
+    sessions: bool = False  # also read Claude Code and Codex sessions on this computer
     topics: int | None = None
     private: bool = False
     rename: dict[int, str] = field(default_factory=dict)
@@ -52,7 +53,8 @@ def describe(items: list[sources.Item]) -> str:
 
 def load(o: Options, say: Callable[[str], None] = print) -> list[sources.Item]:
     notes: list[str] = []
-    items = sources.load(o.inputs, me=o.me, pdf=o.pdf, notes=notes)
+    inputs = list(o.inputs) + ([str(p) for p in sources.session_folders()] if o.sessions else [])
+    items = sources.load(inputs, me=o.me, pdf=o.pdf, notes=notes)
     if o.notion:
         from .notion_api import load_notion
         known = {i.id for i in items}
@@ -68,7 +70,7 @@ def run(o: Options, say: Callable[[str], None] = print) -> tuple[list[sources.It
     items = load(o, say)
     say(describe(items))
     payload = analysis.analyse(items, tz=local_tz(o.tz), n_topics=o.topics, private=o.private,
-                               rename=o.rename, title=o.title)
+                               rename=o.rename, title=o.title, names=sources.topic_names_in(o.inputs))
     say(f"Found {len(payload['topics'])} topics:")
     for t in payload["topics"]:
         say(f"  {t['id'] + 1:>2}. {t['name']:<34} {t['count']:>5} items  ({', '.join(t['terms'])})")

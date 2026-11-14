@@ -3,7 +3,7 @@
 // this browser's extension storage and stays there until you export or delete it.
 //
 // How a sent message is recognised, on any of the supported sites: you press
-// Enter (or click a button) while the message box has text, and right after
+// Enter (or click the send button) while the message box has text, and right after
 // that the box is empty. No site-specific page structure is needed.
 (() => {
   const SITES = {
@@ -14,6 +14,7 @@
   if (!site) return;
 
   const BOX = 'textarea, [contenteditable="true"], [contenteditable=""], [contenteditable="plaintext-only"]';
+  const SEND = /(?:^|[\s_-])(?:send|submit|enviar|envoyer|senden|invia)(?=$|[\s_-])|发送|發送|送信|전송|отправить|إرسال/iu;
   const NAMES = /\s*[-|–—·]\s*(ChatGPT|Claude|Google Gemini|Gemini|Microsoft Copilot|Copilot|Perplexity)\s*$/i;
   const tab = Math.random().toString(36).slice(2, 8);
   let box = null, lastText = '', lastAt = 0, paused = false;
@@ -56,8 +57,9 @@
     const before = textOf(el);
     if (before.length < 2) return;
     const check = last => {
-      const gone = !el.isConnected || textOf(el) === '';
-      if (gone) save(before);
+      // A new chat may replace the composer after sending; removal alone proves nothing.
+      const current = el.isConnected ? el : document.querySelector(BOX);
+      if (current && textOf(current) === '') save(before);
       else if (!last) setTimeout(() => check(true), 900);
     };
     setTimeout(() => check(false), 350);
@@ -69,6 +71,11 @@
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) maybeSent(boxOf(e.target));
   }, true);
   document.addEventListener('click', e => {
-    if (e.target.closest && e.target.closest('button, [role="button"]')) maybeSent(box);
+    const button = e.target.closest && e.target.closest('button, [role="button"], input[type="submit"]');
+    if (!button || !box || !box.isConnected) return;
+    const labelled = ['aria-label', 'title', 'data-testid'].some(a => SEND.test(button.getAttribute(a) || '')) || SEND.test(button.innerText || '');
+    // only an explicit type=submit: a <button> in a form is "submit" by default, attach and tools buttons too
+    const submit = button.getAttribute('type') === 'submit' && button.form && button.form === (box.form || box.closest('form'));
+    if (labelled || submit) maybeSent(box);
   }, true);
 })();

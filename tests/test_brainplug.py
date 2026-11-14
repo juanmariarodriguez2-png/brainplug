@@ -175,6 +175,52 @@ def test_gmail_keeps_only_what_you_wrote(tmp_path):
     assert items["Weekend plan"].text == "Shall we go hiking on Saturday morning?"
 
 
+def identity_mbox(counts):
+    """A mailbox with controlled From counts; To is not identity evidence."""
+    return "".join(
+        f"From {i}@x Mon Mar 03 10:00:00 +0000 2025\n"
+        f"From: {address}\nTo: recipient@example.com\nSubject: Plans\n"
+        "Date: Mon, 3 Mar 2025 10:00:00 +0000\n\nMy plans for tomorrow\n\n"
+        for address, count in counts.items() for i in range(count)
+    )
+
+
+@pytest.mark.parametrize(("counts", "reason"), [
+    ({"ana@example.com": 4, "bob@example.com": 1}, ""),
+    ({"ana@example.com": 6, "bob@example.com": 3, "cat@example.com": 3}, ""),  # exactly 50%
+    ({"ana@example.com": 4, "bob@example.com": 3, "cat@example.com": 3},
+     "; unsure: the address appears in fewer than half of the counted addresses"),
+    ({"ana@example.com": 5, "bob@example.com": 4}, "; unsure: two addresses have similar counts"),
+    ({"ana@example.com": 2, "bob@example.com": 2}, "; unsure: two addresses have similar counts"),
+])
+def test_gmail_reports_detected_identity(tmp_path, counts, reason):
+    box = tmp_path / "mail.mbox"
+    box.write_text(identity_mbox(counts))
+    notes = []
+    assert sources.load([box], notes=notes)
+    assert notes == [f"Gmail: kept the mail sent from ana@example.com (detected{reason}; to change it, give your address in “Who you are” or with --me)."]
+
+
+def test_gmail_given_identity_has_no_remark(tmp_path):
+    box = tmp_path / "mail.mbox"
+    box.write_text(MBOX)
+    notes = []
+    assert sources.load([box], me=["JUAN@example.com"], notes=notes)
+    assert notes == []
+    # The module-level loader stays compatible with callers that do not collect notes.
+    assert sources.load_gmail(box)
+    assert sources.load_gmail(box, notes=notes)
+    assert notes == ["Gmail: kept the mail sent from juan@example.com (detected; to change it, give your address in “Who you are” or with --me)."]
+
+
+def test_gmail_without_addresses_has_no_identity_remark(tmp_path):
+    box = tmp_path / "empty.mbox"
+    box.write_text("")
+    notes = []
+    assert sources.load([box], notes=notes) == []
+    assert notes == []
+
+
 def test_load_mixed_inputs_and_unknown_format(tmp_path):
     z = tmp_path / "claude.zip"
     with zipfile.ZipFile(z, "w") as zf:
@@ -225,6 +271,21 @@ def test_private_mode_hides_titles_and_text(tmp_path):
     assert payload["numbers"]["longest"]["title"] is None
     page = render(payload, tmp_path / "p.html").read_text(encoding="utf-8")
     assert all(f'"t":"{i.title}"' not in page for i in items[:20])
+
+
+def test_private_mode_keeps_no_topic_keywords(tmp_path):
+    # Renaming a revealing topic must hide it: its keywords are words from your text.
+    items = demo.generate(n=120)
+    shown = analysis.analyse(items, TZ, n_topics=6)
+    secret = {w for t in shown["topics"] for w in t["terms"] if len(w) >= 5}
+    assert secret  # the demo data has keywords to hide
+    rename = {t["id"]: f"Area {t['id'] + 1}" for t in shown["topics"]}
+    payload = analysis.analyse(items, TZ, n_topics=6, private=True, rename=rename)
+    assert all(t["terms"] == [] for t in payload["topics"])
+    page = render(payload, tmp_path / "p.html").read_text(encoding="utf-8")
+    start = page.index('<script id="bp-data"')
+    data = page[start:page.index("</script>", start)].lower()
+    assert not [w for w in secret if w in data]
 
 
 def test_render_is_self_contained(tmp_path):

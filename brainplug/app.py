@@ -61,6 +61,7 @@ def build(state: State, options: dict) -> dict:
     payload = analysis.analyse(
         items, tz=local_tz(), n_topics=int(options["topics"]) if options.get("topics") else None,
         private=bool(options.get("private")), title=str(options.get("title") or "My Brainplug"),
+        names=sources.topic_names_in(inputs),
     )
     state.result = render_html(payload, lang=str(options.get("lang") or "en"))
     return {

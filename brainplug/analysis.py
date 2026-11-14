@@ -28,7 +28,7 @@ SOURCE_NAMES = {
     "chatgpt": "ChatGPT", "claude": "Claude", "gemini": "Gemini", "copilot": "Copilot",
     "perplexity": "Perplexity", "obsidian": "Obsidian", "notion": "Notion", "notes": "Notes",
     "word": "Word", "pdf": "PDF", "gmail": "Gmail", "whatsapp": "WhatsApp", "memory": "Memory",
-    "demo": "Demo",
+    "demo": "Demo", "claudecode": "Claude Code", "codex": "Codex",
 }
 TOKEN_PATTERN = r"(?u)\b[^\W\d_][^\W\d_]+\b"
 
@@ -299,12 +299,33 @@ def review(items: list[Item], labels: np.ndarray, dated: np.ndarray, k: int,
     }
 
 
+SIGNATURE = 12  # words kept with a topic name, so it is recognised after the topic shifts a little
+
+
+def match_names(terms: list[list[str]], names: list, skip: set | None = None) -> dict[int, str]:
+    """Give topics the names people saved (Brainplug/Topic names.md), matched by their words:
+    a name fits a topic when at least a third of its saved words are among the topic's words."""
+    pairs = []
+    for i, words in enumerate(terms):
+        for j, (name, saved) in enumerate(names):
+            shared = len(set(words) & set(saved))
+            if i not in (skip or set()) and saved and shared * 3 >= len(saved):
+                pairs.append((-shared / len(saved), -shared, i, j, name))
+    out: dict[int, str] = {}
+    used: set[int] = set()
+    for _score, _shared, i, j, name in sorted(pairs):
+        if i not in out and j not in used:
+            out[i] = name
+            used.add(j)
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # main entry
 # --------------------------------------------------------------------------- #
 def analyse(items: list[Item], tz: tzinfo | None = None, n_topics: int | None = None, private: bool = False,
             rename: dict[int, str] | None = None, title: str = "My Brainplug",
-            seed: int = 0, keep: dict | None = None) -> dict:
+            seed: int = 0, keep: dict | None = None, names: list | None = None) -> dict:
     """Build everything the viewer needs. Pass a dict as ``keep`` to also get the
     fitted model back (vectorizer, SVD, matrices, labels), e.g. for search."""
     if len(items) < 3:
@@ -334,17 +355,19 @@ def analyse(items: list[Item], tz: tzinfo | None = None, n_topics: int | None = 
     sizes = np.bincount(labels, minlength=k)
 
     terms = label_topics(X, labels, vocab)
-    rename = rename or {}
+    sig = label_topics(X, labels, vocab, top=SIGNATURE)  # words a saved topic name is matched by; never in the file
+    rename = {**match_names(sig, names or [], skip=set(rename or {})), **(rename or {})}
     topics = [{
         "id": i,
         "name": rename.get(i) or (" · ".join(terms[i][:2]) if terms[i] else f"Topic {i + 1}"),
-        "terms": terms[i], "color": PALETTE[i], "count": int(sizes[i]),
+        # keywords are words taken from your text: a private file keeps none of them
+        "terms": [] if private else terms[i], "color": PALETTE[i], "count": int(sizes[i]),
         "share": round(float(sizes[i]) / n, 3),
     } for i in range(k)]
 
     edges = connections(Z, items)
     if keep is not None:
-        keep.update(vec=vec, svd=model["svd"], X=X, Z=Z, labels=labels)
+        keep.update(vec=vec, svd=model["svd"], X=X, Z=Z, labels=labels, sig=sig)
 
     # ---- time, normalised to 0..1 -------------------------------------- #
     stamps = np.array([it.created.timestamp() for it in items])

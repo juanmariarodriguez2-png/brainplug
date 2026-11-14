@@ -5,6 +5,8 @@ Supported inputs (files, folders or ZIPs, in any mix):
 * ChatGPT and Claude exports  -> ``conversations.json`` (or the export ZIP)
 * Gemini via Google Takeout   -> ``MyActivity.json`` (or the Takeout ZIP)
 * Live capture                -> the JSON saved by the Brainplug browser extension
+* Claude Code and Codex       -> their session logs (``~/.claude/projects``, ``~/.codex/sessions``):
+                                 what you typed, never the agent's work, with pasted keys masked
 * Obsidian vaults / any folder of Markdown or text notes
 * Notion exports ("Markdown & CSV"); see ``notion_api`` for real creation dates
 * Gmail via Google Takeout    -> ``.mbox`` (only the mail *you* sent)
@@ -20,6 +22,7 @@ PDF files are the exception: they are read whole, so only add your own.
 
 from __future__ import annotations
 
+import copy
 import email
 import html
 import json
@@ -27,8 +30,9 @@ import os
 import re
 import tempfile
 import zipfile
+import zlib
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from email import policy
 from email.utils import getaddresses, parsedate_to_datetime
@@ -38,6 +42,13 @@ from typing import Any, Callable, Iterable, Iterator
 NOTE_SUFFIXES = {".md", ".markdown", ".txt"}
 SKIP_DIRS = {"node_modules", "templates", "Templates", "__MACOSX"}
 MAX_NOTE_BYTES = 400_000
+MAX_ZIP_DEPTH = 4  # the top-level ZIP is depth 1
+MAX_ZIP_ENTRIES = 500_000
+ZIP_RATIO_MIN_BYTES = 100 * 1024**2
+MAX_ZIP_RATIO = 1000
+MAX_ZIP_BYTES = 50 * 1024**3  # shared by all descendants of one top-level ZIP
+MAX_ZIP_DIRECTORY_BYTES = 128 * 1024**2
+ZIP_COPY_CHUNK = 1024**2
 NOTION_ID = re.compile(r"\s[0-9a-f]{32}$")
 
 
@@ -56,6 +67,7 @@ class Item:
     links: list[str] = field(default_factory=list)  # titles this item links to
     tags: list[str] = field(default_factory=list)
     dated: bool = True  # False when the source carries no real date
+    msgs: list[str] = field(default_factory=list)  # chats: each message you wrote, in step with parts
 
     @property
     def words(self) -> int:
@@ -167,7 +179,7 @@ def parse_chatgpt(data: list[dict]) -> list[Item]:
             title=(conv.get("title") or "Untitled").strip() or "Untitled",
             created=created, source="chatgpt", kind="chat",
             text="\n".join(t for _, t in mine),
-            parts=[t or created for t, _ in mine], size=total,
+            parts=[t or created for t, _ in mine], size=total, msgs=[t for _, t in mine],
         ))
     return items
 
@@ -199,7 +211,7 @@ def parse_claude(data: list[dict]) -> list[Item]:
             title=(conv.get("name") or "").strip() or "Untitled",
             created=created, source="claude", kind="chat",
             text="\n".join(t for _, t in mine),
-            parts=[t or created for t, _ in mine], size=total,
+            parts=[t or created for t, _ in mine], size=total, msgs=[t for _, t in mine],
         ))
     return items
 
@@ -276,7 +288,7 @@ def _meta_date(meta: dict) -> datetime | None:
 
 # Notes Brainplug wrote itself (--vault) are a copy of things already read, so they are
 # skipped; the memory folder and "About me" are read as the source "memory".
-_GENERATED = re.compile(r"(?:^|/)Brainplug/(?:Items/|Topics/|Brainplug\.md$)")
+_GENERATED = re.compile(r"(?:^|/)Brainplug/(?:Items/|Topics/|Brainplug\.md$|Excluded\.md$|Topic names\.md$)")
 _MEMORY = re.compile(r"(?:^|/)Brainplug/(?:Memory/|About me\.md$)")
 
 
@@ -400,7 +412,8 @@ def _html_to_text(markup: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", " ", markup))
 
 
-def load_gmail(path: Path, me: Iterable[str] | None = None) -> list[Item]:
+def load_gmail(path: Path, me: Iterable[str] | None = None,
+               notes: list[str] | None = None) -> list[Item]:
     """Read the mail *you sent* from a Takeout mbox, grouped by thread."""
     mine = {a.lower() for a in (me or [])}
     if not mine:
@@ -413,7 +426,19 @@ def load_gmail(path: Path, me: Iterable[str] | None = None) -> list[Item]:
                 seen.update(_addresses(msg, "From") + _addresses(msg, "Delivered-To"))
         if not seen:
             return []
-        mine = {seen.most_common(1)[0][0]}
+        ranked = seen.most_common(2)
+        address, count = ranked[0]
+        mine = {address}
+        reasons = []
+        if count * 2 < sum(seen.values()):
+            reasons.append("the address appears in fewer than half of the counted addresses")
+        # A runner-up within 20% of the leader is too close to trust silently.
+        if len(ranked) > 1 and ranked[1][1] * 5 >= count * 4:
+            reasons.append("two addresses have similar counts")
+        unsure = f"; unsure: {'; '.join(reasons)}" if reasons else ""
+        remark = f"Gmail: kept the mail sent from {address} (detected{unsure}; to change it, give your address in “Who you are” or with --me)."
+        if notes is not None and remark not in notes:
+            notes.append(remark)
 
     def sent_by_me(raw: bytes) -> bool:
         msg = _headers(raw)
@@ -493,7 +518,7 @@ def _gemini_items(prompts: list[tuple[datetime, str, str]]) -> list[Item]:
             id=f"gemini:{key[0]}" if len(key) == 1 else f"gemini:{turns[0][0]:%Y%m%dT%H%M%S}",
             title=title[:70] + ("…" if len(title) > 70 else ""), created=turns[0][0],
             source="gemini", kind="chat", text="\n".join(t for _, t in turns),
-            parts=[w for w, _ in turns], size=2 * len(turns),
+            parts=[w for w, _ in turns], size=2 * len(turns), msgs=[t for _, t in turns],
         ))
     return items
 
@@ -541,6 +566,126 @@ def parse_gemini_html(markup: str) -> list[Item]:
 
 
 # --------------------------------------------------------------------------- #
+# coding agents: Claude Code and Codex sessions (what you typed, not the agent's work)
+# --------------------------------------------------------------------------- #
+# Text the tools put on your side of a session: environment blocks, instructions, command echoes.
+_INJECTED = re.compile(
+    r"^\s*(?:<(?:environment_context|user_instructions|user_shell_command|turn_aborted|system-reminder|task-notification"
+    r"|user-prompt-submit-hook|command-[a-z]+|local-command-[a-z]+|bash-[a-z]+)\b|# AGENTS\.md instructions"
+    r"|Caveat: The messages below|\[Request interrupted)", re.I)
+# Keys and tokens people paste into a coding session by mistake.
+SECRET = re.compile(
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----"
+    r"|\b(?:sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}"
+    r"|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})")
+
+
+def _typed(text: Any) -> str:
+    """What you typed to a coding agent, with pasted keys masked; "" for text the tool added."""
+    text = str(text or "").strip()
+    return "" if not text or _INJECTED.match(text) else SECRET.sub("[secret]", text)
+
+
+def _text_blocks(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    return "\n".join(b.get("text", "") for b in content or []
+                     if isinstance(b, dict) and b.get("type") in ("text", "input_text"))
+
+
+def parse_session(path: Path) -> Item | None:
+    """One Claude Code or Codex session log (JSON Lines), read in one pass."""
+    kind, sid, cwd, title, start = "", "", "", "", None
+    typed: list[tuple[datetime, str]] = []
+    queued: list[tuple[datetime, str]] = []
+    events: list[tuple[datetime, str]] = []
+    answers = 0
+    with open(path, encoding="utf-8", errors="ignore") as fh:
+        for raw in fh:
+            try:
+                obj = json.loads(raw)
+            except ValueError:
+                continue
+            if not isinstance(obj, dict):
+                continue
+            when = parse_date(obj.get("timestamp")) or start
+            if "sessionId" in obj or obj.get("type") == "summary":  # Claude Code
+                kind = kind or ("claudecode" if "sessionId" in obj else "")
+                sid, cwd = obj.get("sessionId") or sid, obj.get("cwd") or cwd
+                t = obj.get("type")
+                if t == "summary":
+                    title = title or str(obj.get("summary") or "")
+                elif t == "user" and not obj.get("isSidechain") and not obj.get("isMeta"):
+                    text = _typed(_text_blocks((obj.get("message") or {}).get("content")))
+                    if text and when:
+                        typed.append((when, text))
+                elif t == "queue-operation" and obj.get("operation") == "enqueue":
+                    text = _typed(_text_blocks(obj.get("content")))  # typed while the agent was working
+                    if text and when:
+                        queued.append((when, text))
+                elif t == "attachment" and (obj.get("attachment") or {}).get("type") == "queued_command":
+                    sent = obj["attachment"]  # a message delivered while it worked, e.g. with a screenshot
+                    if sent.get("humanTurn") is True or (sent.get("origin") or {}).get("kind") == "human":
+                        text = _typed(_text_blocks(sent.get("prompt")))
+                        if text and when:
+                            queued.append((when, text))
+                elif t == "assistant" and not obj.get("isSidechain"):
+                    answers += bool(_text_blocks((obj.get("message") or {}).get("content")).strip())
+                continue
+            p = obj["payload"] if isinstance(obj.get("payload"), dict) else obj  # Codex, new and old logs
+            if obj.get("type") == "session_meta" or ("instructions" in obj and "id" in obj):
+                kind, sid, cwd = "codex", str(p.get("id") or sid), str(p.get("cwd") or cwd)
+                start = parse_date(p.get("timestamp")) or start
+                continue
+            if p.get("type") == "message" and p.get("role") == "user":
+                text = _typed(_text_blocks(p.get("content")))
+                if text and (when or start):
+                    typed.append((when or start, text))
+            elif p.get("type") == "message" and p.get("role") == "assistant":
+                answers += 1
+            elif p.get("type") == "user_message":
+                text = _typed(p.get("message"))
+                if text and (when or start):
+                    events.append((when or start, text))
+    if not kind:
+        return None
+    if kind == "codex" and not typed:
+        typed = events  # older logs only record what you typed as events
+    left, seen = Counter(_squash(t) for _, t in typed), set()
+    for when, text in queued:  # a message typed while the agent worked is logged more than once
+        key = _squash(text)
+        if key in seen:
+            continue
+        seen.add(key)
+        if left[key]:
+            left[key] -= 1
+        else:
+            typed.append((when, text))
+    mine = sorted(typed, key=lambda m: m[0])
+    if not mine:
+        return None
+    project = re.split(r"[\\/]", cwd.rstrip("\\/"))[-1] if cwd else ""
+    first = _squash(title or mine[0][1])
+    name = first[:70] + ("…" if len(first) > 70 else "")
+    return Item(
+        id=f"{kind}:{sid or path.stem}", title=f"{project} · {name}" if project else name, created=mine[0][0],
+        source=kind, kind="chat", text="\n".join(t for _, t in mine), parts=[w for w, _ in mine],
+        msgs=[t for _, t in mine], size=len(mine) + answers,
+    )
+
+
+def _squash(text: str) -> str:
+    return " ".join(str(text).split())
+
+
+def session_folders() -> list[Path]:
+    """Where Claude Code and Codex keep their session logs on this computer (those that exist)."""
+    claude = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude").expanduser() / "projects"
+    codex = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex").expanduser() / "sessions"
+    return [p for p in (claude, codex) if p.is_dir()]
+
+
+# --------------------------------------------------------------------------- #
 # live capture (the Brainplug browser extension)
 # --------------------------------------------------------------------------- #
 def parse_capture(data: dict) -> list[Item]:
@@ -562,6 +707,7 @@ def parse_capture(data: dict) -> list[Item]:
         items.append(Item(
             id=f"{site}:{conv}", title=title.strip(), created=turns[0][0], source=site, kind="chat",
             text="\n".join(t for _, t, _ in turns), parts=[w for w, _, _ in turns], size=2 * len(turns),
+            msgs=[t for _, t, _ in turns],
         ))
     return items
 
@@ -737,7 +883,6 @@ def parse_pdf(path: Path, rel: Path) -> Item | None:
 # --------------------------------------------------------------------------- #
 # entry point: files, folders and ZIPs
 # --------------------------------------------------------------------------- #
-_TEMP: list[tempfile.TemporaryDirectory] = []
 _ZIP_KEEP = NOTE_SUFFIXES | {".mbox", ".zip", ".docx", ".pdf", ".json", ".html"}
 
 
@@ -768,34 +913,119 @@ class _Loader:
             return []
 
     def zip(self, path: Path) -> list[Item]:
-        with zipfile.ZipFile(path) as zf:
-            names = zf.namelist()
-            tmp = tempfile.TemporaryDirectory(prefix="brainplug_")
-            _TEMP.append(tmp)
-            root = Path(tmp.name)
-            for info in zf.infolist():
-                suffix = Path(info.filename).suffix.lower()
-                if info.is_dir() or suffix not in _ZIP_KEEP:
-                    continue
-                low = info.filename.lower()
-                if (suffix == ".json" and not _wanted_json(low)) or \
-                        (suffix == ".html" and not ("gemini" in low and "activ" in low)):
-                    continue
-                target = Path(zf.extract(info, root))  # extract() strips "../" and absolute paths
-                try:
-                    stamp = datetime(*info.date_time).timestamp()
-                    os.utime(target, (stamp, stamp))
-                except (ValueError, OSError):
-                    pass
-            is_vault = any("/.obsidian/" in "/" + n for n in names)
-        return self.folder(root, is_vault, hint=path.stem)
+        depth = getattr(self, "_zip_depth", 0)
+        if depth == 0:
+            self._zip_entries = 0
+            self._zip_bytes = 0
 
-    def folder(self, root: Path, is_vault: bool = False, hint: str = "") -> list[Item]:
+        def skip(name: str, why: str) -> None:
+            self.notes.append(f"ZIP: skipped {name} ({why}).")
+
+        if depth >= MAX_ZIP_DEPTH:
+            skip(path.name, "nesting depth limit")
+            return []
+        self._zip_depth = depth + 1
+        try:
+            # ZipFile eagerly allocates the central directory. Inspect it with bounded
+            # reads first; count actual records rather than trusting the EOCD count.
+            with path.open("rb") as fh:
+                end = zipfile._EndRecData(fh)
+                if not end:
+                    raise zipfile.BadZipFile("Not a ZIP file")
+                size = end[zipfile._ECD_SIZE]
+                if size > MAX_ZIP_DIRECTORY_BYTES:
+                    skip(path.name, "central directory byte limit")
+                    return []
+                start = end[zipfile._ECD_LOCATION] - size
+                fh.seek(max(0, start))
+                if fh.read(4) != b"PK\x01\x02" and end[0] == b"PK\x06\x06":
+                    start -= 76  # older Python versions leave the ZIP64 trailer here
+                fh.seek(max(0, start))
+                examined = 0
+                while examined < size:
+                    if self._zip_entries >= MAX_ZIP_ENTRIES:
+                        skip(path.name, "entry count limit")
+                        return []
+                    head = fh.read(46)
+                    if len(head) != 46 or head[:4] != b"PK\x01\x02":
+                        raise zipfile.BadZipFile("Damaged central directory")
+                    self._zip_entries += 1
+                    extra = sum(int.from_bytes(head[i:i + 2], "little") for i in (28, 30, 32))
+                    fh.seek(extra, 1)
+                    examined += 46 + extra
+            with zipfile.ZipFile(path) as zf, tempfile.TemporaryDirectory(prefix="brainplug_") as tmp:
+                root = Path(tmp)
+                for info in zf.infolist():
+                    suffix = Path(info.filename).suffix.lower()
+                    if info.is_dir() or suffix not in _ZIP_KEEP:
+                        continue
+                    low = info.filename.lower()
+                    if (suffix == ".json" and not _wanted_json(low)) or \
+                            (suffix == ".html" and not ("gemini" in low and "activ" in low)):
+                        continue
+                    why = None
+                    if suffix == ".zip" and self._zip_depth >= MAX_ZIP_DEPTH:
+                        why = "nesting depth limit"
+                    elif info.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
+                        # Older Python ZipExtFile versions inflate BZIP2/LZMA in
+                        # unbounded calls, even when read() requests a small chunk.
+                        why = "unsupported compression for bounded extraction"
+                    elif info.file_size > ZIP_RATIO_MIN_BYTES and info.file_size > MAX_ZIP_RATIO * info.compress_size:
+                        why = "compression ratio limit"
+                    elif info.file_size > MAX_ZIP_BYTES - self._zip_bytes:
+                        why = "extracted byte budget"
+                    if why:
+                        skip(info.filename, why)
+                        continue
+                    # Match extract()'s path sanitization without its unbounded copy.
+                    name = info.filename.replace("/", os.path.sep)
+                    if os.path.altsep:
+                        name = name.replace(os.path.altsep, os.path.sep)
+                    parts = [p for p in os.path.splitdrive(name)[1].split(os.path.sep) if p not in ("", ".", "..")]
+                    if os.path.sep == "\\":
+                        parts = [zipfile.ZipFile._sanitize_windows_name(p, "\\") for p in parts]
+                    target = root.joinpath(*parts)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    written = 0
+                    try:
+                        # ZipExtFile otherwise silently truncates at file_size. Allow
+                        # one extra byte so even a forged CRC for a prefix is rejected.
+                        probe = copy.copy(info)
+                        probe.file_size = min(info.file_size, MAX_ZIP_BYTES - self._zip_bytes) + 1
+                        with zf.open(probe) as src, target.open("wb") as dst:
+                            while chunk := src.read(ZIP_COPY_CHUNK):
+                                if written + len(chunk) > info.file_size:
+                                    raise ValueError("output exceeds declared size")
+                                if len(chunk) > MAX_ZIP_BYTES - self._zip_bytes:
+                                    raise ValueError("extracted byte budget")
+                                self._zip_bytes += len(chunk)
+                                written += len(chunk)
+                                dst.write(chunk)
+                        if written != info.file_size:
+                            raise ValueError("output differs from declared size")
+                    except (ValueError, RuntimeError, NotImplementedError, zipfile.BadZipFile, zlib.error) as exc:
+                        target.unlink(missing_ok=True)
+                        skip(info.filename, f"invalid ZIP data or declared size: {exc}")
+                        continue
+                    try:
+                        stamp = datetime(*info.date_time).timestamp()
+                        os.utime(target, (stamp, stamp))
+                    except (ValueError, OSError):
+                        pass
+                is_vault = any("/.obsidian/" in "/" + i.filename for i in zf.infolist())
+                return self.folder(root, is_vault, hint=path.stem)
+        finally:
+            self._zip_depth = depth
+
+    def folder(self, root: Path, is_vault: bool = False, hint: str = "", skip: Iterable[Path] = ()) -> list[Item]:
         is_vault = is_vault or (root / ".obsidian").exists() or any(root.glob("*/.obsidian"))
+        inner = [s.relative_to(root.resolve()).parts for s in skip]  # folders also given on their own
         items: list[Item] = []
         for path in sorted(root.rglob("*")):
             rel = path.relative_to(root)
             if any(p.startswith(".") or p in SKIP_DIRS for p in rel.parts) or not path.is_file():
+                continue
+            if any(rel.parts[:len(parts)] == parts for parts in inner):
                 continue
             items += self.file(path, rel, "obsidian" if is_vault else "notes", inside=True, hint=hint)
         return items
@@ -809,7 +1039,10 @@ class _Loader:
             low = rel.as_posix().lower()
             return parse_gemini_html(_read_all(path)) if (not inside or ("gemini" in low and "activ" in low)) else []
         if suffix == ".mbox":
-            return load_gmail(path, self.emails)
+            return load_gmail(path, self.emails, self.notes)
+        if suffix == ".jsonl":
+            session = parse_session(path)
+            return [session] if session else []
         if suffix == ".zip":
             return self.zip(path)
         if suffix == ".docx":
@@ -845,9 +1078,15 @@ class _Loader:
         if not me:
             senders = sorted({s for c in self.chats for _, s, _ in c.rows})[:6]
             self.notes.append(
-                "WhatsApp: could not tell which sender is you, so those chats were skipped. "
-                f"Pass your name as it appears in the chat (seen: {', '.join(senders)}).")
+                "WhatsApp: unsure: could not tell which sender is you, so those chats were skipped. "
+                f'Give your name as it appears in the chat in “Who you are” or with --me (seen: {", ".join(senders)}).')
             return []
+        if not self.names:
+            sender = next((s for c in self.chats for _, s, _ in c.rows if s.lower() in me), sorted(me)[0])
+            evidence = f"{len(self.chats)} chats" if len(self.chats) != 1 else "the file name"
+            self.notes.append(
+                f"WhatsApp: kept the messages written by {sender} (detected from {evidence}; "
+                'to change it, give your name in “Who you are” or with --me).')
         return whatsapp_items(self.chats, me)
 
 
@@ -864,17 +1103,91 @@ def load(paths: Iterable[str | Path], me: Iterable[str] | None = None, pdf: bool
     ``pdf``   also read the PDFs found inside folders and ZIPs.
     ``notes`` a list that receives human-readable remarks (skipped inputs…).
     """
+    paths = list(paths)
     loader = _Loader(me, pdf, notes)
     found: list[Item] = []
+    dirs = [Path(p).expanduser().resolve() for p in paths if Path(p).expanduser().is_dir()]
     for raw in paths:
         path = Path(raw).expanduser()
         if not path.exists():
             raise FileNotFoundError(f"Not found: {path}")
-        found += loader.folder(path) if path.is_dir() else loader.file(path, Path(path.name))
+        if path.is_dir():  # a folder given on its own is read once, from its own root
+            nested = [d for d in dirs if d != path.resolve() and d.is_relative_to(path.resolve())]
+            found += loader.folder(path, skip=nested)
+        else:
+            found += loader.file(path, Path(path.name))
     found += loader.whatsapp()
     items: dict[str, Item] = {}
     for item in found:
         old = items.get(item.id)
-        if old is None or item.words > old.words:  # the same chat from an export and from live capture
+        if old is None:
             items[item.id] = item
-    return sorted(items.values(), key=lambda i: i.created)
+        elif old.text == item.text:
+            continue  # the same thing reached twice, e.g. a folder given twice
+        elif old.msgs and item.msgs:
+            items[item.id] = merge_chats(old, item)  # an export and a later live capture of one chat
+        elif item.kind == "note":
+            n = 2  # a different note at the same place in another folder: keep both
+            while f"{item.id}#{n}" in items:
+                n += 1
+            item.id = f"{item.id}#{n}"
+            items[item.id] = item
+        elif item.words > old.words:
+            items[item.id] = item  # an older and a newer export of the same thread
+    left_out, left_out_sources = _exclusions(paths)
+    return sorted((i for i in items.values() if i.id not in left_out and i.source not in left_out_sources),
+                  key=lambda i: i.created)
+
+
+def topic_names_in(paths: Iterable) -> list[tuple[str, list[str]]]:
+    """Topic names saved in a vault you pass (Brainplug/Topic names.md)."""
+    from .memory import topic_names  # here: memory does not depend on this module
+    out: list[tuple[str, list[str]]] = []
+    for raw in paths:
+        root = Path(raw).expanduser()
+        if root.is_dir():
+            for note in [*root.glob("Brainplug/Topic names.md"), *root.glob("*/Brainplug/Topic names.md")]:
+                out += topic_names(note.parent.parent)
+    return out
+
+
+def _exclusions(paths: list) -> tuple[set[str], set[str]]:
+    """What the person asked to leave out (Brainplug/Excluded.md in a vault you pass)."""
+    from .memory import exclusions  # here: memory does not depend on this module
+    ids: set[str] = set()
+    names: set[str] = set()
+    for raw in paths:
+        root = Path(raw).expanduser()
+        if root.is_dir():
+            for note in [*root.glob("Brainplug/Excluded.md"), *root.glob("*/Brainplug/Excluded.md")]:
+                vault = note.parent.parent
+                more_ids, more_names = exclusions(vault)
+                ids |= more_ids
+                names |= more_names
+                if vault != root:  # the vault is a folder inside what you passed: its notes' ids say so
+                    ids |= {f"{s}:{vault.name}/{rest}" for s, _, rest in (i.partition(":") for i in more_ids)}
+    return ids, names
+
+
+def _same(text: str) -> str:
+    return " ".join(text.split())
+
+
+def merge_chats(a: Item, b: Item) -> Item:
+    """One conversation found in two places (an export and the extension's capture made
+    after it): keep every message once. A message both have is counted once per copy."""
+    base, other = (a, b) if len(a.msgs) >= len(b.msgs) else (b, a)
+    unmatched = Counter(_same(m) for m in base.msgs)
+    extra = []
+    for when, text in zip(other.parts, other.msgs):
+        key = _same(text)
+        if unmatched[key]:
+            unmatched[key] -= 1
+        else:
+            extra.append((when, text))
+    if not extra:
+        return base
+    rows = sorted([*zip(base.parts, base.msgs), *extra], key=lambda r: r[0])
+    return replace(base, title=base.title if base.title not in ("", "Untitled") else other.title,
+                   created=min(base.created, other.created), text="\n".join(t for _, t in rows),
+                   parts=[w for w, _ in rows], msgs=[t for _, t in rows], size=base.size + 2 * len(extra))

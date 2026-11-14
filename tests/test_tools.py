@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -8,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from brainplug import demo, sync
+from brainplug import demo, memory, sync
 from brainplug.__main__ import main
 from brainplug.agent import Brain
 from brainplug.export import redact
@@ -47,12 +48,14 @@ def test_mcp_server_round_trip(tmp_path):
 
     vault = tmp_path / "vault"
     notes_folder(vault)
+    log = open(tmp_path / "server.log", "w", encoding="utf-8")  # noqa: SIM115  (closed below)
 
     async def talk():
         params = StdioServerParameters(
             command=sys.executable, args=["-m", "brainplug", "mcp", "--brain", str(vault), "--topics", "6"],
-            env={**os.environ, "PYTHONPATH": str(ROOT)})
-        async with stdio_client(params) as (read, write):
+            env={**os.environ, "PYTHONPATH": str(ROOT), "BRAINPLUG_CACHE": str(tmp_path / "cache")})
+        # pass where the server's log goes: stdio_client's default is whatever sys.stderr was when mcp was imported
+        async with stdio_client(params, errlog=log) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 call = lambda name, **args: session.call_tool(name, args)  # noqa: E731
@@ -63,17 +66,27 @@ def test_mcp_server_round_trip(tmp_path):
                                         title="Capstone topic", kind="project", pin=True, saved_by="Test client"))
                 again = text(await call("recall", query="capstone tide pools crab"))
                 briefing = text(await call("context"))
-                return tools, found, saved, again, briefing
+                memory.approve(vault, next((vault / "Brainplug" / "Memory").glob("*Capstone topic.md")).stem)
+                approved = text(await call("context"))
+                return tools, found, saved, again, briefing, approved
 
-    tools, found, saved, again, briefing = asyncio.run(asyncio.wait_for(talk(), timeout=90))
-    assert tools == ["context", "recall", "remember", "read", "forget", "overview", "topic", "timeline", "review"]
+    try:
+        tools, found, saved, again, briefing, approved = asyncio.run(asyncio.wait_for(talk(), timeout=90))
+    finally:
+        log.close()
+    assert tools == ["context", "recall", "remember", "read", "forget", "exclude", "overview", "topic", "timeline",
+                     "review", "name_topic"]
     assert found.startswith("#") and "· Notes ·" in found
     note = vault / "Brainplug" / "Memory"
     [path] = list(note.glob("*Capstone topic.md"))
     written = path.read_text(encoding="utf-8")
-    assert "kind: project" in written and "saved_by: Test client" in written and "pinned: true" in written
-    assert saved.startswith("Saved as #81") and "· Memory ·" in again.splitlines()[0] and "tide pools" in again
-    assert "Keep in mind:" in briefing and "tide pools and crab behaviour" in briefing
+    assert "kind: project" in written and "saved_by: Test client" in written
+    assert re.match(r"Saved as #[a-z2-7]{6} in Brainplug/Memory/", saved) and "waits for their approval" in saved
+    assert "· Memory ·" in again.splitlines()[0] and "tide pools" in again
+    # an assistant's standing preference is not used until the person approves it
+    assert "Keep in mind:" not in briefing and "wait for their approval" in briefing
+    assert "Keep in mind:\n- The capstone project is about tide pools" in approved
+    assert list((tmp_path / "cache").glob("index-*.pickle"))  # the next start reads the index from here
 
 
 def test_sync_config_and_watch(tmp_path, capsys, monkeypatch):

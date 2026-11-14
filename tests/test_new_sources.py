@@ -8,6 +8,7 @@ import pytest
 
 from brainplug import notion_api, sources
 from helpers import tiny_docx, tiny_pdf
+from make_inputs import write_overlap, write_sessions
 
 GEMINI = [
     {"header": "Gemini Apps", "title": "Prompted how do I interpret a p-value in a regression?",
@@ -79,11 +80,62 @@ def test_capture_file_and_duplicates(tmp_path):
     assert items[1].title.startswith("draft a cover letter")
 
 
+def test_export_and_later_capture_keep_every_message(tmp_path):
+    # The export knows the first message, the capture the newest one: neither may be lost.
+    write_overlap(tmp_path)
+    [chat] = sources.load([tmp_path / "conversations.json", tmp_path / "brainplug-capture.json"])
+    assert [" ".join(m.split()) for m in chat.text.split("\n")] == [
+        "outline my thesis on minimum wages and employment", "add a chapter on data sources for the thesis",
+        "now write the abstract of the thesis"]
+    assert len(chat.parts) == 3 and chat.title == "Thesis plan" and "ASSISTANTWORD" not in chat.text
+    assert chat.created.timestamp() == 1735732800.0
+
+
+def test_same_name_in_two_folders_keeps_both_notes(tmp_path):
+    write_overlap(tmp_path)
+    items = sources.load([tmp_path / "A", tmp_path / "B", tmp_path / "A"])  # A twice: still one copy of it
+    assert sorted("bakery" in i.text for i in items) == [False, True]
+    assert len({i.id for i in items}) == 2
+
+
+def test_claude_code_and_codex_sessions_keep_only_what_you_typed(tmp_path, monkeypatch):
+    homes = write_sessions(tmp_path)
+    items = {i.source: i for i in sources.load([homes["claude"] / "projects", homes["codex"] / "sessions"])}
+    claude, codex = items["claudecode"], items["codex"]
+    assert claude.msgs == ["build a dashboard for the tide pool salinity sensors",
+                           "also chart the water temperature per hour",  # typed while it worked: logged twice, kept once
+                           "use the key [secret] for the API",  # a pasted key is masked
+                           "the chart in this screenshot is upside down"]  # sent with a screenshot, logged twice
+    assert claude.title == "tidepool · Tide pool sensor dashboard" and claude.id.startswith("claudecode:5f1c2a9e")
+    assert codex.msgs == ["write a script that counts sea urchins in the kelp survey photos"]
+    assert codex.title.startswith("kelp · write a script") and codex.created.isoformat().startswith("2026-03-02T09:00:02")
+    words = " ".join(i.text for i in items.values())
+    for leaked in ("ASSISTANTWORD", "TOOLWORD", "METAWORD", "COMMANDWORD", "SIDECHAINWORD", "ENVWORD", "abcdefghij",
+                   "NOTIFYWORD"):
+        assert leaked not in words
+
+    # --sessions finds both folders where the tools keep them
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(homes["claude"]))
+    monkeypatch.setenv("CODEX_HOME", str(homes["codex"]))
+    assert sources.session_folders() == [homes["claude"] / "projects", homes["codex"] / "sessions"]
+    from brainplug.pipeline import Options, load
+    assert {i.source for i in load(Options(sessions=True), say=lambda _: None)} == {"claudecode", "codex"}
+
+
+def test_session_prompts_that_start_with_markup_are_kept():
+    assert sources._typed('<div class="card"> why does this not center?').startswith("<div")
+    assert sources._typed("<environment_context><cwd>/x</cwd></environment_context>") == ""
+    assert sources._typed("<command-name>/clear</command-name>") == ""
+
+
 def test_whatsapp_keeps_only_my_messages(tmp_path):
     (tmp_path / "WhatsApp Chat with Marta.txt").write_text(WHATSAPP_IOS, encoding="utf-8")
     notes: list[str] = []
     items = sources.load([tmp_path], notes=notes)
-    assert len(items) == 1 and not notes  # 13 March has too little text to count
+    assert len(items) == 1  # 13 March has too little text to count
+    assert notes == [
+        "WhatsApp: kept the messages written by Juan (detected from the file name; "
+        'to change it, give your name in “Who you are” or with --me).']
     item = items[0]
     assert (item.source, item.kind, item.title, item.size) == ("whatsapp", "message", "Marta", 3)
     assert "instrumental variables chapter\nbefore the exam" in item.text
@@ -93,7 +145,11 @@ def test_whatsapp_keeps_only_my_messages(tmp_path):
     # two chats: you are the person who is in both; 12-hour clock, day first
     with zipfile.ZipFile(tmp_path / "WhatsApp Chat - Dani.zip", "w") as zf:
         zf.writestr("_chat.txt", WHATSAPP_ANDROID)
-    items = sources.load([tmp_path])
+    notes.clear()
+    items = sources.load([tmp_path], notes=notes)
+    assert notes == [
+        "WhatsApp: kept the messages written by Juan (detected from 2 chats; "
+        'to change it, give your name in “Who you are” or with --me).']
     gym = next(i for i in items if "sentadillas" in i.text)
     assert gym.title == "Dani" and (gym.created.day, gym.created.month, gym.created.hour) == (3, 4, 21)
     assert "THEIR WORDS" not in gym.text and "omitido" not in gym.text
@@ -103,8 +159,21 @@ def test_whatsapp_needs_to_know_who_you_are(tmp_path):
     (tmp_path / "_chat.txt").write_text(WHATSAPP_IOS, encoding="utf-8")
     notes: list[str] = []
     assert sources.load([tmp_path], notes=notes) == [] and "Juan" in notes[0] and "Marta" in notes[0]
-    [item] = sources.load([tmp_path], me=["juan"])
+    assert len(notes) == 1 and "unsure:" in notes[0] and '“Who you are” or with --me' in notes[0]
+    notes.clear()
+    [item] = sources.load([tmp_path], me=["juan"], notes=notes)
+    assert notes == []
     assert "THEIR WORDS" not in item.text
+
+
+def test_whatsapp_detects_identity_across_unnamed_chats(tmp_path):
+    for n, other in enumerate(["Marta", "Ana", "Dani"]):
+        (tmp_path / f"chat{n}.txt").write_text(WHATSAPP_IOS.replace("Marta", other), encoding="utf-8")
+    notes = []
+    assert len(sources.load([tmp_path], notes=notes)) == 3
+    assert notes == [
+        "WhatsApp: kept the messages written by Juan (detected from 3 chats; "
+        'to change it, give your name in “Who you are” or with --me).']
 
 
 def test_word_and_pdf(tmp_path):
@@ -183,3 +252,129 @@ def test_notion_api_gives_real_dates():
     assert calls[1][2:] == ("Bearer secret_x", "2022-06-28") and calls[2][1] == "p2"
     with pytest.raises(notion_api.NotionError):
         notion_api.load_notion("")
+
+
+ZIP_SAFETY_LIMITS = {
+    "depth": 2, "entries": 6, "ratioMinBytes": 128, "ratio": 10,
+    "bytes": 100_000, "directoryBytes": 100_000,
+}
+ZIP_SAFETY_CASES = [
+    "normal", "chatgpt", "zip64", "declared-partial", "unsupported", "ratio", "depth", "declared-stored",
+    "declared-deflated", "entries", "nested-entries", "budget", "nested-budget", "directory", "forged-count",
+]
+
+
+def zip_safety_input(tmp_path, case):
+    """Small hostile fixtures shared by the Python and Node tests."""
+    import io
+    import struct
+    import zlib
+
+    text = b"My research plan compares sea water temperature and salinity in the tide pools."
+    limits = dict(ZIP_SAFETY_LIMITS)
+
+    def archive(entries, compression=zipfile.ZIP_DEFLATED):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", compression=compression) as zf:
+            for name, data in entries:
+                zf.writestr(name, data)
+        return buf.getvalue()
+
+    reason, count = "", 1
+    data = archive([("plan.md", text)])
+    if case == "chatgpt":
+        export = [{"id": "safe", "title": "Research", "create_time": 1735732800, "mapping": {
+            "m": {"message": {"author": {"role": "user"}, "content": {"parts": [text.decode()]}}}}}]
+        data = archive([("conversations.json", json.dumps(export))])
+    elif case == "zip64":
+        # A small ZIP with a real ZIP64 directory trailer, as used by big exports.
+        eocd = bytearray(data[-22:])
+        cd_size, cd_offset = struct.unpack_from("<II", eocd, 12)
+        record_at = len(data) - 22
+        record = struct.pack("<IQHHIIQQQQ", 0x06064B50, 44, 45, 45, 0, 0, 1, 1, cd_size, cd_offset)
+        locator = struct.pack("<IIQI", 0x07064B50, 0, record_at, 1)
+        struct.pack_into("<HHII", eocd, 8, 0xFFFF, 0xFFFF, 0xFFFFFFFF, 0xFFFFFFFF)
+        data = data[:-22] + record + locator + eocd
+    elif case == "unsupported":
+        data = archive([("plan.md", text)], zipfile.ZIP_BZIP2)
+        reason, count = "unsupported", 0
+    elif case == "ratio":
+        data = archive([("bomb.txt", b"research " * 1024), ("plan.md", text)])
+        reason = "compression ratio"
+    elif case == "depth":
+        data = archive([("middle.zip", archive([("inner.zip", data)])), ("plan.md", text)])
+        reason = "nesting depth"
+    elif case.startswith("declared-"):
+        # Forge both the size and a valid CRC for the declared prefix. A reader
+        # that silently truncates at the declared size would accept this entry.
+        payload = b"research " * 1024
+        declared = 4096 if case == "declared-partial" else 32
+        if case == "declared-partial":
+            limits["ratioMinBytes"] = 100_000  # exercise the streaming check
+        compression = zipfile.ZIP_STORED if case.endswith("stored") else zipfile.ZIP_DEFLATED
+        bad = bytearray(archive([("bomb.txt", payload)], compression))
+        cd = bad.index(b"PK\x01\x02")
+        for crc_at, size_at in ((14, 22), (cd + 16, cd + 24)):
+            struct.pack_into("<I", bad, crc_at, zlib.crc32(payload[:declared]))
+            struct.pack_into("<I", bad, size_at, declared)
+        # Keep a good sibling to prove one bad entry doesn't stop the archive.
+        data = archive([("bad.zip", bad), ("plan.md", text)], zipfile.ZIP_STORED)
+        reason = "declared size"
+    elif case in ("entries", "forged-count"):
+        data = archive([(f"ignored{i}.bin", b"") for i in range(7)])
+        if case == "forged-count":
+            bad = bytearray(data)
+            eocd = bad.index(b"PK\x05\x06")
+            struct.pack_into("<HH", bad, eocd + 8, 1, 1)
+            data = bytes(bad)
+        reason, count = "entry count", 0
+    elif case == "nested-entries":
+        inner = archive([(f"ignored{i}.bin", b"") for i in range(5)] + [("plan.md", text)])
+        data = archive([("inner.zip", inner)])
+        reason, count = "entry count", 0
+    elif case == "budget":
+        limits["bytes"] = len(text)
+        data = archive([("a.md", text), ("b.md", text)])
+        reason = "byte budget"
+    elif case == "nested-budget":
+        inner = archive([("plan.md", text)])
+        limits["bytes"] = len(inner) + len(text) - 1
+        data = archive([("inner.zip", inner)])
+        reason, count = "byte budget", 0
+    elif case == "directory":
+        limits["directoryBytes"] = 46
+        reason, count = "central directory", 0
+    path = tmp_path / "export.zip"
+    path.write_bytes(data)
+    return path, limits, reason, count
+
+
+def patch_zip_limits(monkeypatch, limits):
+    for key, name in {"depth": "MAX_ZIP_DEPTH", "entries": "MAX_ZIP_ENTRIES", "ratioMinBytes": "ZIP_RATIO_MIN_BYTES",
+                      "ratio": "MAX_ZIP_RATIO", "bytes": "MAX_ZIP_BYTES", "directoryBytes": "MAX_ZIP_DIRECTORY_BYTES"}.items():
+        monkeypatch.setattr(sources, name, limits[key])
+
+
+@pytest.mark.parametrize("case", ZIP_SAFETY_CASES)
+def test_zip_safety_limits(tmp_path, monkeypatch, case):
+    path, limits, reason, count = zip_safety_input(tmp_path, case)
+    patch_zip_limits(monkeypatch, limits)
+    monkeypatch.setattr(sources, "ZIP_COPY_CHUNK", 1024)
+    notes = []
+    items = sources.load([path], notes=notes)
+    assert len(items) == count
+    if reason:
+        assert any(reason in note and "skipped" in note for note in notes), notes
+    else:
+        assert notes == []
+    assert all("research research" not in item.text for item in items)
+
+
+def test_zip_budgets_reset_between_top_level_inputs(tmp_path, monkeypatch):
+    path, limits, _, _ = zip_safety_input(tmp_path, "normal")
+    limits["entries"] = 1
+    limits["bytes"] = 80
+    patch_zip_limits(monkeypatch, limits)
+    notes = []
+    assert len(sources.load([path, path], notes=notes)) == 1  # duplicate items merge
+    assert notes == []

@@ -16,6 +16,13 @@
   #drop h2 { font-size: clamp(20px, 2.4vw, 26px); font-weight: 600; letter-spacing: -0.02em; margin: 0 0 6px; }
   #drop p { color: var(--mute); margin: 0 auto; max-width: 620px; font-size: 15.5px; }
   #drop .actions { justify-content: center; margin-top: 22px; }
+  #startNow { margin-top: 14px; color: var(--soft); }
+  #requests .rows { margin-top: 28px; }
+  #requests li { grid-template-columns: minmax(100px, 160px) 1fr auto; }
+  #requests label { display: flex; align-items: center; gap: 8px; color: var(--soft); font-size: 14.5px; cursor: pointer; }
+  #requests input { accent-color: #a77bff; width: 16px; height: 16px; }
+  #requests .actions { align-items: center; }
+  #requests .actions p { margin: 0; }
   #list { margin-top: 26px; }
   #list li { grid-template-columns: 1fr auto auto; align-items: center; padding: 12px 0; font-size: 15.5px; }
   #list .size { color: var(--mute); font-variant-numeric: tabular-nums; font-size: 14px; }
@@ -52,7 +59,8 @@
   #result .bar2 span { color: var(--mute); margin-right: auto; }
   #result .bar2 .btn { padding: 8px 15px; font-size: 14px; }
   #result iframe { flex: 1; width: 100%; border: 0; background: #000; }
-  @media (max-width: 720px) { .fields { grid-template-columns: 1fr; } #list li { grid-template-columns: 1fr auto; } #list .size { display: none; } #result .bar2 span { display: none; } }
+  @media (max-width: 720px) { .fields { grid-template-columns: 1fr; } #list li { grid-template-columns: 1fr auto; } #list .size { display: none; } #result .bar2 span { display: none; }
+    #requests li { grid-template-columns: 1fr auto; } #requests .what { grid-column: 1 / -1; } #requests label { grid-column: 2; grid-row: 1; } }
 </style>
 </head>
 <body>
@@ -81,6 +89,7 @@
       <input id="inFiles" type="file" multiple hidden>
       <input id="inFolder" type="file" webkitdirectory hidden>
     </div>
+    <p class="note" id="startNow" data-i="startNow"></p>
 
     <div id="ext"><span id="extText"></span><button class="btn" id="extAdd" type="button" data-i="extAdd"></button></div>
     <ul class="rows" id="list" hidden></ul>
@@ -104,6 +113,36 @@
     </div>
     <div class="bar" id="bar"><i></i></div>
     <div id="status" role="status" aria-live="polite"></div>
+
+    <section id="requests" aria-labelledby="requestsTitle">
+      <h2 class="say small" id="requestsTitle" data-i="requestsTitle"></h2>
+      <ul class="rows">
+        <li>
+          <a class="name" href="https://chatgpt.com/#settings/DataControls" target="_blank" rel="noopener">ChatGPT</a>
+          <span class="what"><span data-i="rChatgpt"></span><small data-i="waitEmail"></small></span>
+          <label><input id="requestedChatgpt" type="checkbox" data-request="chatgpt" aria-labelledby="requestedChatgptLabel"><span id="requestedChatgptLabel"><span data-i="requested"></span> · ChatGPT</span></label>
+        </li>
+        <li>
+          <a class="name" href="https://claude.ai/settings" target="_blank" rel="noopener">Claude</a>
+          <span class="what"><span data-i="rClaude"></span><small data-i="waitEmail"></small></span>
+          <label><input id="requestedClaude" type="checkbox" data-request="claude" aria-labelledby="requestedClaudeLabel"><span id="requestedClaudeLabel"><span data-i="requested"></span> · Claude</span></label>
+        </li>
+        <li>
+          <a class="name" href="https://takeout.google.com/" target="_blank" rel="noopener">Gemini</a>
+          <span class="what"><span data-i="rGemini"></span><small data-i="waitTakeout"></small></span>
+          <label><input id="requestedGemini" type="checkbox" data-request="gemini" aria-labelledby="requestedGeminiLabel"><span id="requestedGeminiLabel"><span data-i="requested"></span> · Gemini</span></label>
+        </li>
+        <li>
+          <a class="name" href="https://takeout.google.com/" target="_blank" rel="noopener">Gmail</a>
+          <span class="what"><span data-i="rGmail"></span><small data-i="waitTakeout"></small></span>
+          <label><input id="requestedGmail" type="checkbox" data-request="gmail" aria-labelledby="requestedGmailLabel"><span id="requestedGmailLabel"><span data-i="requested"></span> · Gmail</span></label>
+        </li>
+      </ul>
+      <div class="actions">
+        <button class="btn ghost" id="remind" type="button" data-i="remind"></button>
+        <p class="note" data-i="remindHint"></p>
+      </div>
+    </section>
 
     <section id="export">
       <h2 class="say small" data-i="expSay"></h2>
@@ -146,6 +185,16 @@ const TXT = {
     dropT: 'Drop files or folders here',
     dropP: 'Use them exactly as each app gives them to you: the .zip from ChatGPT, Claude, Notion or Google Takeout, your Obsidian folder, a Gmail .mbox, WhatsApp chats, Word and PDF files.',
     pickFiles: 'Choose files', pickFolder: 'Choose a folder',
+    startNow: 'Start now with what you already have: an Obsidian vault or any notes folder, Word/PDF files you wrote, WhatsApp chats exported from your phone (instant), or the browser extension’s capture. No waiting needed.',
+    requestsTitle: 'Request your exports now', requested: 'Requested',
+    rChatgpt: 'Data controls › Export data.',
+    rClaude: 'Privacy › Export data.',
+    rGemini: 'Deselect all › My Activity › Gemini Apps; choose JSON as the format, then create the export.',
+    rGmail: 'Deselect all › Mail › select only the Sent label, then create the export.',
+    waitEmail: 'Email usually arrives in minutes to hours; it can take longer.',
+    waitTakeout: 'Email usually arrives in hours to days.',
+    remind: 'Remind me', remindHint: 'Download a calendar event for tomorrow at 10:00, your local time.',
+    reminderTitle: 'Brainplug: drop your exports', reminderDescription: 'Drop your exports here:',
     extText: n => `The Brainplug extension has ${n} messages saved in this browser.`, extAdd: 'Add them', extName: 'Live capture (extension)',
     optsT: 'Options', oTitle: 'Title', oLang: 'Language of the result', oMe: 'Who you are',
     oMeHint: 'Your email (for Gmail) and your name as it appears in WhatsApp, separated by commas. Leave it empty and Brainplug works it out when it can.',
@@ -182,6 +231,16 @@ const TXT = {
     dropT: 'Suelta aquí archivos o carpetas',
     dropP: 'Sirven tal cual te los da cada app: el .zip de ChatGPT, Claude, Notion o Google Takeout, tu carpeta de Obsidian, un .mbox de Gmail, chats de WhatsApp, archivos Word y PDF.',
     pickFiles: 'Elegir archivos', pickFolder: 'Elegir una carpeta',
+    startNow: 'Empieza ya con lo que tienes: tu bóveda de Obsidian o cualquier carpeta de notas, archivos Word/PDF que hayas escrito, chats de WhatsApp exportados desde el móvil (al instante) o la captura de la extensión del navegador. Sin esperas.',
+    requestsTitle: 'Solicita ya tus exportaciones', requested: 'Solicitada',
+    rChatgpt: 'Controles de datos › Exportar datos.',
+    rClaude: 'Privacidad › Exportar datos.',
+    rGemini: 'Desmarcar todo › Mi actividad › Aplicaciones de Gemini; elige JSON como formato y crea la exportación.',
+    rGmail: 'Desmarcar todo › Correo › selecciona solo la etiqueta Enviados y crea la exportación.',
+    waitEmail: 'El correo suele llegar en unos minutos o unas horas; puede tardar más.',
+    waitTakeout: 'El correo suele tardar entre unas horas y varios días.',
+    remind: 'Recordármelo', remindHint: 'Descarga un evento de calendario para mañana a las 10:00, en tu hora local.',
+    reminderTitle: 'Brainplug: añade tus exportaciones', reminderDescription: 'Añade aquí tus exportaciones:',
     extText: n => `La extensión de Brainplug tiene ${n} mensajes guardados en este navegador.`, extAdd: 'Añadirlos', extName: 'Captura en vivo (extensión)',
     optsT: 'Opciones', oTitle: 'Título', oLang: 'Idioma del resultado', oMe: 'Quién eres',
     oMeHint: 'Tu correo (para Gmail) y tu nombre tal como sale en WhatsApp, separados por comas. Si lo dejas vacío, Brainplug lo deduce cuando puede.',
@@ -237,8 +296,40 @@ $('lang').onclick = () => { lang = lang === 'en' ? 'es' : 'en'; applyLang(); };
 $('oTitle').oninput = () => { $('oTitle').dataset.touched = '1'; };
 $('oLang').onchange = () => { $('oLang').dataset.touched = '1'; };
 
+// -------------------------------------------- local checklist and calendar
+document.querySelectorAll('[data-request]').forEach(input => {
+  const key = `brainplug:export-requested:${input.dataset.request}`;
+  try { input.checked = localStorage.getItem(key) === '1'; } catch { /* storage may be disabled */ }
+  input.onchange = () => {
+    try { localStorage.setItem(key, input.checked ? '1' : '0'); } catch { /* still usable in this tab */ }
+  };
+});
+
+$('remind').onclick = () => {
+  const now = new Date(), start = new Date(now);
+  start.setDate(start.getDate() + 1);
+  start.setHours(10, 0, 0, 0); // choose the local hour before converting to UTC (including DST)
+  const end = new Date(start.getTime() + 30 * 60 * 1000);
+  const utc = date => date.toISOString().replace(/[-:]|\.\d{3}/g, '');
+  const text = value => String(value).replace(/[\\;,]/g, m => '\\' + m).replace(/\r?\n/g, '\\n');  // RFC 5545 escaping
+  const uid = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;  // also outside https
+  const appUrl = 'https://brainplug.app/app/';
+  const calendar = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Brainplug//Export reminder//EN',
+    'BEGIN:VEVENT', `UID:${uid}@brainplug.app`, `DTSTAMP:${utc(now)}`,
+    `DTSTART:${utc(start)}`, `DTEND:${utc(end)}`, `SUMMARY:${text(T.reminderTitle)}`,
+    `DESCRIPTION:${text(T.reminderDescription + ' ' + appUrl)}`, `URL:${appUrl}`,
+    'END:VEVENT', 'END:VCALENDAR', '',
+  ].join('\r\n');
+  const url = URL.createObjectURL(new Blob([calendar], { type: 'text/calendar;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url; link.download = 'brainplug-reminder.ics';
+  document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
 // ---------------------------------------------------------------- inputs
-const WANTED = /\.(md|markdown|txt|json|html|mbox|zip|docx|pdf)$/i;
+const WANTED = /\.(md|markdown|txt|json|jsonl|html|mbox|zip|docx|pdf)$/i;
 const size = n => (n < 1e6 ? `${Math.max(1, Math.round(n / 1e3))} KB` : n < 1e9 ? `${(n / 1e6).toFixed(1)} MB` : `${(n / 1e9).toFixed(2)} GB`);
 
 function addGroup(name, inputs) {

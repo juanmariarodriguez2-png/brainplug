@@ -2,7 +2,7 @@
 // A port of brainplug/sources.py that runs in the browser (and in Node, for tests).
 // Every loader keeps only your own words: your side of a chat, your notes, the text
 // you typed in an email, your side of a WhatsApp chat.
-import { blobFile, bytesFile, listZip, concat } from './zip.js';
+import { blobFile, bytesFile, listZip, concat, ZIP_LIMITS, ZipSkip } from './zip.js';
 
 export const MAX_NOTE = 400000;
 const NOTE_SUFFIXES = new Set(['.md', '.markdown', '.txt']);
@@ -88,7 +88,8 @@ export function parseChatgpt(data) {
     if (created === null || !mine.length) return;
     mine.sort((a, b) => (a[0] ?? created) - (b[0] ?? created));
     items.push(item(`chatgpt:${conv.id || conv.conversation_id || i}`, (conv.title || 'Untitled').trim() || 'Untitled',
-      created, 'chatgpt', 'chat', mine.map(m => m[1]).join('\n'), { parts: mine.map(m => m[0] ?? created), size: total }));
+      created, 'chatgpt', 'chat', mine.map(m => m[1]).join('\n'),
+      { parts: mine.map(m => m[0] ?? created), size: total, msgs: mine.map(m => m[1]) }));
   });
   return items;
 }
@@ -110,7 +111,7 @@ export function parseClaude(data) {
     const created = parseDate(conv.created_at) ?? (first ? first[0] : null);
     if (created === null || !mine.length) return;
     items.push(item(`claude:${conv.uuid || i}`, (conv.name || '').trim() || 'Untitled', created, 'claude', 'chat',
-      mine.map(m => m[1]).join('\n'), { parts: mine.map(m => m[0] ?? created), size: total }));
+      mine.map(m => m[1]).join('\n'), { parts: mine.map(m => m[0] ?? created), size: total, msgs: mine.map(m => m[1]) }));
   });
   return items;
 }
@@ -143,7 +144,7 @@ function geminiItems(prompts) {
     const title = squash(turns[0][1]);
     return item(key.startsWith('c:') ? `gemini:${key.slice(2)}` : `gemini:${stamp(turns[0][0])}`,
       title.slice(0, 70) + (title.length > 70 ? '…' : ''), turns[0][0], 'gemini', 'chat',
-      turns.map(t => t[1]).join('\n'), { parts: turns.map(t => t[0]), size: 2 * turns.length });
+      turns.map(t => t[1]).join('\n'), { parts: turns.map(t => t[0]), size: 2 * turns.length, msgs: turns.map(t => t[1]) });
   });
 }
 
@@ -184,6 +185,83 @@ export function parseGeminiHtml(markup) {
   return geminiItems(prompts);
 }
 
+// ---------------------------------------------- coding agents: Claude Code and Codex
+// Text the tools put on your side of a session: environment blocks, instructions, command echoes.
+const INJECTED = /^\s*(?:<(?:environment_context|user_instructions|user_shell_command|turn_aborted|system-reminder|task-notification|user-prompt-submit-hook|command-[a-z]+|local-command-[a-z]+|bash-[a-z]+)\b|# AGENTS\.md instructions|Caveat: The messages below|\[Request interrupted)/i;
+// Keys and tokens people paste into a coding session by mistake.
+export const SECRET = /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----|\b(?:sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})/g;
+const typed = value => {
+  const text = String(value ?? '').trim();
+  return !text || INJECTED.test(text) ? '' : text.replace(SECRET, '[secret]');
+};
+const textBlocks = content => (typeof content === 'string' ? content
+  : (Array.isArray(content) ? content : []).filter(b => b && typeof b === 'object' && (b.type === 'text' || b.type === 'input_text')).map(b => b.text || '').join('\n'));
+
+// One Claude Code or Codex session log (JSON Lines). Keeps what you typed, never the agent's work.
+export function parseSession(text, fallbackId) {
+  let kind = '', sid = '', cwd = '', title = '', start = null, answers = 0;
+  let mine = []; const queued = [], events = [];
+  for (const raw of text.split('\n')) {
+    let obj;
+    try { obj = JSON.parse(raw); } catch { continue; }
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) continue;
+    const when = parseDate(obj.timestamp) ?? start;
+    if ('sessionId' in obj || obj.type === 'summary') {  // Claude Code
+      if (!kind && 'sessionId' in obj) kind = 'claudecode';
+      sid = obj.sessionId || sid; cwd = obj.cwd || cwd;
+      if (obj.type === 'summary') title = title || String(obj.summary || '');
+      else if (obj.type === 'user' && !obj.isSidechain && !obj.isMeta) {
+        const t = typed(textBlocks((obj.message || {}).content));
+        if (t && when !== null) mine.push([when, t]);
+      } else if (obj.type === 'queue-operation' && obj.operation === 'enqueue') {
+        const t = typed(textBlocks(obj.content));  // typed while the agent was working
+        if (t && when !== null) queued.push([when, t]);
+      } else if (obj.type === 'attachment' && obj.attachment && obj.attachment.type === 'queued_command') {
+        const sent = obj.attachment;  // a message delivered while it worked, e.g. with a screenshot
+        if (sent.humanTurn === true || (sent.origin || {}).kind === 'human') {
+          const t = typed(textBlocks(sent.prompt));
+          if (t && when !== null) queued.push([when, t]);
+        }
+      } else if (obj.type === 'assistant' && !obj.isSidechain) answers += textBlocks((obj.message || {}).content).trim() ? 1 : 0;
+      continue;
+    }
+    const p = obj.payload && typeof obj.payload === 'object' && !Array.isArray(obj.payload) ? obj.payload : obj;  // Codex, new and old logs
+    if (obj.type === 'session_meta' || ('instructions' in obj && 'id' in obj)) {
+      kind = 'codex'; sid = String(p.id || sid); cwd = String(p.cwd || cwd);
+      start = parseDate(p.timestamp) ?? start;
+      continue;
+    }
+    const at = when ?? start;
+    if (p.type === 'message' && p.role === 'user') {
+      const t = typed(textBlocks(p.content));
+      if (t && at !== null) mine.push([at, t]);
+    } else if (p.type === 'message' && p.role === 'assistant') answers++;
+    else if (p.type === 'user_message') {
+      const t = typed(p.message);
+      if (t && at !== null) events.push([at, t]);
+    }
+  }
+  if (!kind) return null;
+  if (kind === 'codex' && !mine.length) mine = events;  // older logs only record what you typed as events
+  const left = new Map();
+  for (const [, t] of mine) left.set(squash(t), (left.get(squash(t)) || 0) + 1);
+  const seen = new Set();
+  for (const [w, t] of queued) {  // a message typed while the agent worked is logged more than once
+    const key = squash(t);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const n = left.get(key) || 0;
+    if (n) left.set(key, n - 1); else mine.push([w, t]);
+  }
+  mine.sort((a, b) => a[0] - b[0]);
+  if (!mine.length) return null;
+  const project = cwd ? cwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() : '';
+  const first = squash(title || mine[0][1]);
+  const name = first.slice(0, 70) + (first.length > 70 ? '…' : '');
+  return item(`${kind}:${sid || fallbackId}`, project ? `${project} · ${name}` : name, mine[0][0], kind, 'chat',
+    mine.map(m => m[1]).join('\n'), { parts: mine.map(m => m[0]), msgs: mine.map(m => m[1]), size: mine.length + answers });
+}
+
 // ---------------------------------------------------------- live capture
 export function parseCapture(data) {
   const groups = new Map();
@@ -203,7 +281,7 @@ export function parseCapture(data) {
     const named = [...turns].reverse().find(t => t[2].trim());
     const title = named ? named[2] : squash(turns[0][1]).slice(0, 70);
     return item(`${site}:${conv}`, title.trim(), turns[0][0], site, 'chat', turns.map(t => t[1]).join('\n'),
-      { parts: turns.map(t => t[0]), size: 2 * turns.length });
+      { parts: turns.map(t => t[0]), size: 2 * turns.length, msgs: turns.map(t => t[1]) });
   });
 }
 
@@ -266,7 +344,11 @@ function metaDate(meta) {
 
 // Notes Brainplug wrote itself are a copy of things already read, so they are skipped;
 // the memory folder and "About me" are read as the source "memory".
-const GENERATED = /(?:^|\/)Brainplug\/(?:Items\/|Topics\/|Brainplug\.md$)/;
+const GENERATED = /(?:^|\/)Brainplug\/(?:Items\/|Topics\/|Brainplug\.md$|Excluded\.md$|Topic names\.md$)/;
+const TOPIC_NAMES = /(?:^|\/)Brainplug\/Topic names\.md$/;
+const NAME_LINE = /^\s*[-*]\s+\*\*(.+?)\*\*\s+·\s+(.+?)\s*$/;
+const EXCLUDED = /(?:^|\/)Brainplug\/Excluded\.md$/;
+const EXCLUDED_LINE = /^\s*[-*]\s+(source:\s*)?`([^`]+)`/;
 const MEMORY = /(?:^|\/)Brainplug\/(?:Memory\/|About me\.md$)/;
 
 function parseNote(text, path, rel, source, mtime) {
@@ -467,7 +549,7 @@ function bodyText(headers, body, depth = 0) {
 }
 
 /** Read the mail you sent from a Takeout mbox, grouped by thread. */
-export async function loadGmail(file, me = []) {
+export async function loadGmail(file, me = [], note = () => {}) {
   let mine = new Set(me.map(a => a.toLowerCase()));
   if (!mine.size) {
     // Your own address is the one mail is delivered to (or, in a Sent-only mailbox, the one everything comes from).
@@ -477,7 +559,15 @@ export async function loadGmail(file, me = []) {
       for (const a of [...addresses(h.get('from')), ...addresses(h.get('delivered-to'))]) seen.set(a, (seen.get(a) || 0) + 1);
     }
     if (!seen.size) return [];
-    mine = new Set([[...seen].reduce((best, cur) => (cur[1] > best[1] ? cur : best))[0]]);
+    const ranked = [...seen].sort((a, b) => b[1] - a[1]);
+    const [address, count] = ranked[0];
+    mine = new Set([address]);
+    const reasons = [];
+    if (count * 2 < [...seen.values()].reduce((a, b) => a + b, 0)) reasons.push('the address appears in fewer than half of the counted addresses');
+    // A runner-up within 20% of the leader is too close to trust silently.
+    if (ranked.length > 1 && ranked[1][1] * 5 >= count * 4) reasons.push('two addresses have similar counts');
+    const unsure = reasons.length ? `; unsure: ${reasons.join('; ')}` : '';
+    note(`Gmail: kept the mail sent from ${address} (detected${unsure}; to change it, give your address in “Who you are” or with --me).`);
   }
   const threads = new Map();
   for await (const raw of mboxMessages(file)) {
@@ -580,9 +670,9 @@ export function whatsappItems(chats, me) {
 }
 
 // ------------------------------------------------------------ documents
-async function parseDocx(file, rel) {
+async function parseDocx(file, rel, ctx) {
   let entries;
-  try { entries = await listZip(file.blob || new Blob([await file.bytes()])); } catch { return null; }
+  try { entries = await listZip(file.blob || new Blob([await file.bytes()]), { note: ctx.note, archive: file.path }); } catch { return null; }
   const doc = entries.find(e => e.path === 'word/document.xml');
   if (!doc) return null;
   const xml = await doc.text();
@@ -627,9 +717,18 @@ async function loadFile(file, rel, ctx, { noteSource = 'notes', inside = false, 
     try { return parseJson(JSON.parse(await file.text())); } catch (err) { if (inside) return []; throw err instanceof SyntaxError ? new Error(`${baseName(file.path)} is not valid JSON.`) : err; }
   }
   if (ext === '.html') return !inside || wantedHtml(rel) ? parseGeminiHtml(await file.text()) : [];
-  if (ext === '.mbox') return loadGmail(file, ctx.emails);
+  if (ext === '.mbox') return loadGmail(file, ctx.emails, ctx.note);
+  if (ext === '.jsonl') {  // a Claude Code or Codex session
+    const session = parseSession(await file.text(60000000), stem(file.path));
+    return session ? [session] : [];
+  }
   if (ext === '.zip') return loadZip(file, ctx);
-  if (ext === '.docx') { const doc = baseName(file.path).startsWith('~$') ? null : await parseDocx(file, rel); return doc ? [doc] : []; }
+  if (ext === '.docx') {
+    try {
+      const doc = baseName(file.path).startsWith('~$') ? null : await parseDocx(file, rel, ctx);
+      return doc ? [doc] : [];
+    } catch (err) { if (!(err instanceof ZipSkip)) throw err; return []; }
+  }
   if (ext === '.pdf') {
     if (inside && !ctx.pdf) return [];  // PDFs in a folder are usually other people's writing
     const doc = await parsePdf(file, rel, ctx);
@@ -641,6 +740,27 @@ async function loadFile(file, rel, ctx, { noteSource = 'notes', inside = false, 
       const m = WA_NAME.exec(stem(file.path)) || WA_NAME.exec(hint);
       const name = (m ? m[1].trim() : '') || (stem(file.path) === '_chat' ? hint : stem(file.path));
       ctx.chats.push(readWhatsapp(text, name, name || rel));
+      return [];
+    }
+    if (TOPIC_NAMES.test(rel)) {  // names the person gave topics, matched by their words
+      for (const line of text.split(/\r?\n/)) {
+        const m = NAME_LINE.exec(line);
+        if (m) ctx.topicNames.push([m[1].trim(), m[2].split(',').map(w => w.trim().toLowerCase()).filter(Boolean)]);
+      }
+      return [];
+    }
+    if (EXCLUDED.test(rel)) {  // what the person asked to leave out of the brain
+      const vault = rel.slice(0, rel.length - 'Brainplug/Excluded.md'.length);  // "" or "Vault/"
+      for (const line of text.split(/\r?\n/)) {
+        const m = EXCLUDED_LINE.exec(line);
+        if (!m) continue;
+        const id = m[2].trim(), at = id.indexOf(':');
+        if (m[1]) ctx.excludedSources.add(id);
+        else {
+          ctx.excludedIds.add(id);
+          if (vault && at > 0) ctx.excludedIds.add(`${id.slice(0, at)}:${vault}${id.slice(at + 1)}`);
+        }
+      }
       return [];
     }
     if (GENERATED.test(rel)) return [];
@@ -656,17 +776,25 @@ async function loadFolder(files, ctx, hint = '') {
   const out = [];
   for (const file of [...files].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))) {
     if (hiddenPath(file.path)) continue;
-    out.push(...await loadFile(file, file.path, ctx, { noteSource: isVault ? 'obsidian' : 'notes', inside: true, hint }));
+    try {
+      out.push(...await loadFile(file, file.path, ctx, { noteSource: isVault ? 'obsidian' : 'notes', inside: true, hint }));
+    } catch (err) { if (!(err instanceof ZipSkip)) throw err; }
   }
   return out;
 }
 
 async function loadZip(file, ctx) {
-  const blob = file.blob || new Blob([await file.bytes()]);
-  const keep = new Set([...NOTE_SUFFIXES, '.mbox', '.zip', '.docx', '.pdf', '.json', '.html']);
-  const all = await listZip(blob);
-  const wanted = all.filter(e => keep.has(suffix(e.path)) || ('/' + e.path).includes('/.obsidian/'));
-  return loadFolder(wanted, ctx, stem(file.path));
+  const depth = (ctx.zipDepth || 0) + 1;
+  if (depth > ZIP_LIMITS.depth) { ctx.note(`ZIP: skipped ${file.path} (nesting depth limit).`); return []; }
+  const state = ctx.zipState || { entries: 0, bytes: 0 };
+  try {
+    const blob = file.blob || new Blob([await file.bytes()]);
+    const keep = new Set([...NOTE_SUFFIXES, '.mbox', '.zip', '.docx', '.pdf', '.json', '.html']);
+    const wanted = name => keep.has(suffix(name)) && (suffix(name) !== '.json' || wantedJson(name))
+      && (suffix(name) !== '.html' || wantedHtml(name));
+    const all = await listZip(blob, { note: ctx.note, state, archive: file.path, wanted });
+    return await loadFolder(all, { ...ctx, zipDepth: depth, zipState: state }, stem(file.path));
+  } catch (err) { if (!(err instanceof ZipSkip)) throw err; return []; }
 }
 
 /**
@@ -681,6 +809,7 @@ export async function load(inputs, options = {}) {
     emails: me.filter(m => m.includes('@')), names: new Set(me.filter(m => !m.includes('@')).map(m => m.toLowerCase())),
     pdf: !!options.pdf, pdfText: options.pdfText, chats: [],
     progress: options.progress || (() => {}), note: text => { if (!notes.includes(text)) notes.push(text); },
+    excludedIds: new Set(), excludedSources: new Set(), topicNames: [],
   };
   const found = [];
   const folders = new Map();
@@ -696,18 +825,56 @@ export async function load(inputs, options = {}) {
   for (const [top, files] of folders) found.push(...await loadFolder(files, ctx, top));
   if (ctx.chats.length) {
     const who = whatsappMe(ctx.chats, ctx.names);
-    if (who.size) found.push(...whatsappItems(ctx.chats, who));
-    else {
+    if (who.size) {
+      if (!ctx.names.size) {
+        const row = ctx.chats.flatMap(c => c.rows).find(r => who.has(r[1].toLowerCase()));
+        const sender = row ? row[1] : [...who].sort()[0];
+        const evidence = ctx.chats.length === 1 ? 'the file name' : `${ctx.chats.length} chats`;
+        ctx.note(`WhatsApp: kept the messages written by ${sender} (detected from ${evidence}; to change it, give your name in “Who you are” or with --me).`);
+      }
+      found.push(...whatsappItems(ctx.chats, who));
+    } else {
       const senders = [...new Set(ctx.chats.flatMap(c => c.rows.map(r => r[1])))].sort().slice(0, 6);
-      ctx.note(`WhatsApp: could not tell which sender is you, so those chats were skipped. Type your name as it appears in the chat (seen: ${senders.join(', ')}).`);
+      ctx.note(`WhatsApp: unsure: could not tell which sender is you, so those chats were skipped. Give your name as it appears in the chat in “Who you are” or with --me (seen: ${senders.join(', ')}).`);
     }
   }
   const items = new Map();
   for (const it of found) {
     const old = items.get(it.id);
-    if (!old || it.words > old.words) items.set(it.id, it);  // the same chat from an export and from live capture
+    if (!old) items.set(it.id, it);
+    else if (old.text === it.text) continue;  // the same thing reached twice, e.g. a folder given twice
+    else if (old.msgs && old.msgs.length && it.msgs && it.msgs.length) items.set(it.id, mergeChats(old, it));  // an export and a later live capture
+    else if (it.kind === 'note') {  // a different note at the same place in another folder: keep both
+      let n = 2;
+      while (items.has(`${it.id}#${n}`)) n++;
+      it.id = `${it.id}#${n}`;
+      items.set(it.id, it);
+    } else if (it.words > old.words) items.set(it.id, it);  // an older and a newer export of the same thread
   }
-  return { items: [...items.values()].sort((a, b) => a.created - b.created), notes };
+  const kept = [...items.values()].filter(it => !ctx.excludedIds.has(it.id) && !ctx.excludedSources.has(it.source));
+  return { items: kept.sort((a, b) => a.created - b.created), notes, topicNames: ctx.topicNames };
+}
+
+const same = text => text.split(/\s+/).filter(Boolean).join(' ');
+
+// One conversation found in two places (an export and the extension's capture made after it):
+// keep every message once. A message both have is counted once per copy.
+export function mergeChats(a, b) {
+  const [base, other] = a.msgs.length >= b.msgs.length ? [a, b] : [b, a];
+  const unmatched = new Map();
+  for (const m of base.msgs) unmatched.set(same(m), (unmatched.get(same(m)) || 0) + 1);
+  const extra = [];
+  other.msgs.forEach((text, i) => {
+    const left = unmatched.get(same(text)) || 0;
+    if (left) unmatched.set(same(text), left - 1);
+    else extra.push([other.parts[i], text]);
+  });
+  if (!extra.length) return base;
+  const rows = [...base.parts.map((w, i) => [w, base.msgs[i]]), ...extra].sort((x, y) => x[0] - y[0]);
+  const text = rows.map(r => r[1]).join('\n');
+  return { ...base, title: base.title && base.title !== 'Untitled' ? base.title : other.title,
+    created: Math.min(base.created, other.created), text, words: countWords(text),
+    parts: rows.map(r => r[0]), msgs: rows.map(r => r[1]), size: base.size + 2 * extra.length };
 }
 
 export { blobFile, bytesFile };

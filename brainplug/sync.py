@@ -93,7 +93,8 @@ def watch(config: str | Path = CONFIG, every: float = 30.0, say: Callable[[str],
         n += 1
         try:
             o = read_config(config)
-            now = fingerprint(o.inputs)
+            from .sources import session_folders
+            now = fingerprint(list(o.inputs) + ([str(p) for p in session_folders()] if o.sessions else []))
             # wait until the files stop changing (a sync client may still be writing)
             if now != seen and (seen is None or now == pending):
                 say(f"[{time.strftime('%H:%M:%S')}] " + ("building…" if seen is None else "change detected, rebuilding…"))

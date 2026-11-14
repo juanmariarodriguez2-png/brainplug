@@ -1,0 +1,11 @@
+line-length = 130
+target-version = "py310"
+
+[lint]
+select = ["E4", "E9", "F", "B"]
+# Existing zip() calls do not specify strict=.
+ignore = ["B905"]
+
+[lint.per-file-ignores]
+# Existing fixture text uses an f-string without placeholders.
+"tests/make_inputs.py" = ["F541"]
