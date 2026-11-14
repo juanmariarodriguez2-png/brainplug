@@ -6,6 +6,7 @@ name: publish
 on:
   release:
     types: [published]
+  workflow_dispatch:  # or by hand from the Actions tab (Run workflow), publishing what is on the branch
 
 jobs:
   build:
@@ -16,6 +17,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: The release tag matches the package version
+        if: github.event_name == 'release'
         shell: bash
         run: |
           version=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
