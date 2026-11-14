@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brainplug — privacy policy</title>
+<meta name="description" content="How Brainplug handles data on its website, in its web app, capture extension, Python package and MCP server.">
+<link rel="canonical" href="https://brainplug.app/privacy.html">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23000'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23a77bff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="site.css">
+<style>
+  .hero { padding-top: clamp(30px, 6vw, 80px); }
+  .policy { margin-top: 30px; }
+  .policy p:last-child { margin-bottom: 0; }
+  .policy .name { font-size: inherit; margin: 0; }
+  .policy .what { overflow-wrap: anywhere; }
+  @media (max-width: 720px) { .top a.opt { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="./">Brainplug</a>
+    <a class="opt" href="./#memory" data-i="navMemory"></a>
+    <a class="opt" href="./#reads" data-i="navReads"></a>
+    <a class="opt" href="./#how" data-i="navHow"></a>
+    <a href="https://github.com/juanmariarodriguez2-png/brainplug">GitHub</a>
+    <button class="lang" id="lang" type="button"></button>
+  </header>
+  <main>
+    <section class="hero">
+      <h1 class="say" data-i="heading"></h1>
+      <p class="lead" data-i="scope"></p>
+      <p class="note" data-i="updated"></p>
+      <ul class="rows policy">
+        <li><h2 class="name" data-i="basicsTitle"></h2><div class="what" data-i="basics"></div></li>
+        <li><h2 class="name" data-i="extensionTitle"></h2><div class="what" data-i="extension"></div></li>
+        <li><h2 class="name" data-i="bridgeTitle"></h2><div class="what" data-i="bridge"></div></li>
+        <li><h2 class="name" data-i="webTitle"></h2><div class="what" data-i="web"></div></li>
+        <li><h2 class="name" data-i="pythonTitle"></h2><div class="what" data-i="python"></div></li>
+        <li><h2 class="name" data-i="mcpTitle"></h2><div class="what" data-i="mcp"></div></li>
+        <li><h2 class="name" data-i="controlTitle"></h2><div class="what" data-i="control"></div></li>
+        <li><h2 class="name" data-i="hostingTitle"></h2><div class="what" data-i="hosting"></div></li>
+        <li><h2 class="name" data-i="contactTitle"></h2><div class="what" data-i="contact"></div></li>
+      </ul>
+    </section>
+  </main>
+  <footer class="end">
+    <span data-i="foot1"></span>
+    <a href="https://github.com/juanmariarodriguez2-png/brainplug">GitHub</a>
+    <span data-i="foot2"></span>
+  </footer>
+</div>
+<script>
+const TXT = {
+  en: {
+    lang: '<b>EN</b> / ES', navMemory: 'Memory for your AI', navReads: 'What it reads', navHow: 'How it works',
+    title: 'Brainplug — privacy policy', heading: 'Privacy policy',
+    scope: 'This policy covers brainplug.app, the web app at /app/, the Brainplug capture browser extension, the Python package and its local MCP server. Brainplug is an open-source project by Juan Rodríguez.',
+    updated: 'Updated 14 November 2026',
+    basicsTitle: 'Accounts and tracking',
+    basics: '<p>Brainplug has no accounts, cookies, analytics, advertising or tracking scripts. It does not send your writing to a Brainplug server. The website and web app load their code, fonts and other assets from this site; this privacy page loads nothing from other sites.</p><p>Data is used to capture your sent prompts, analyse the sources you choose, create your map and provide the local memory tools you enable. Brainplug does not sell or broker data, transfer it to advertisers or data brokers, use it for unrelated purposes, or use it to determine creditworthiness or for lending.</p>',
+    extensionTitle: 'Capture extension',
+    extension: '<p>The extension keeps the text you type and send on ChatGPT (chatgpt.com and chat.openai.com), Claude, Gemini, Microsoft Copilot and Perplexity. It detects a send action when you press Enter or click Send and the message box then empties. It does not read or save AI answers or retain unsent drafts. Each saved record contains your text (up to 20,000 characters), the site name, a conversation identifier, the page title when available and a timestamp. Anything personal you put in that text is part of the saved copy.</p><p>Records and the pause setting are stored in <code>chrome.storage.local</code> in this browser profile, not Chrome sync storage. The extension makes no network requests and never sends captured data to a server. Its storage permissions let it keep the records and setting locally and retain a growing history beyond Chrome’s normal local-storage quota.</p>',
+    bridgeTitle: 'Inside the browser',
+    bridge: '<p>On the Brainplug web app, <code>bridge.js</code> supplies the saved-message count. When you choose “Add them”, it passes the saved messages to that page using Chrome extension messaging and <code>window.postMessage</code>. This handover stays inside your browser and does not cross the network. The bridge runs only on /app/ pages at brainplug.app, www.brainplug.app, 127.0.0.1 and localhost.</p><p>The popup can also save your captures as a JSON file on your computer. Opening the web app loads the app from the website, without sending your captures with that request. The AI sites themselves receive the messages you send there under their own policies, independently of Brainplug.</p>',
+    webTitle: 'Web app',
+    web: '<p>The web app reads only the files and folders you select and captures you choose to add. It analyses them in the tab, using a browser worker, and uploads none of them. Once its resources have loaded, analysis works offline. The generated map contains your data and can be downloaded as an HTML file.</p><p>The app remembers only export-request checklist ticks in <code>localStorage</code>, under keys beginning <code>brainplug:export-requested:</code>. Those ticks stay in this browser until you change them or clear site data. Selected files and the generated result are held in the tab, not saved to localStorage.</p>',
+    pythonTitle: 'Python package',
+    python: '<p>The Python package reads the local inputs you supply and writes the outputs you request, such as an HTML map, JSON, Markdown notes or a masked dataset. Generated files can contain your writing. Masking is not anonymisation; review a dataset before sharing it.</p><p>The <code>brainplug app</code> command serves a separate local interface on 127.0.0.1. Files selected there are copied to a temporary folder on your computer for analysis, and those copies are removed on reset or normal shutdown. They are not uploaded to a remote service.</p><p>If you explicitly enable <code>--notion</code>, the package uses your <code>NOTION_TOKEN</code> to request the pages shared with that integration directly from api.notion.com. Notion receives those authenticated requests under its own policies. Brainplug does not receive the token or pages on a project server.</p><p>If you add <code>--sessions</code>, the package also reads the Claude Code and Codex session logs already on your computer (<code>~/.claude/projects</code>, <code>~/.codex/sessions</code>). It keeps only what you typed: the agents’ replies, tool output and the text the tools add are left out, and keys and tokens it recognises are replaced by <code>[secret]</code>. Those logs are read where they are and are not uploaded.</p>',
+    mcpTitle: 'Local MCP server',
+    mcp: '<p>The MCP server (<code>brainplug/agent.py</code>) runs on your computer and returns briefings, search results, excerpts and other requested information to the assistant you connect. By default it keeps an index, including source text and analysis, in your computer’s cache folder: <code>~/Library/Caches/brainplug</code> on macOS, <code>%LOCALAPPDATA%/brainplug</code> on Windows, or <code>$XDG_CACHE_HOME/brainplug</code> (otherwise <code>~/.cache/brainplug</code>) on Linux. <code>BRAINPLUG_CACHE</code> can override that location; <code>--no-cache</code> disables the disk cache.</p><p>What an assistant reads through MCP goes to that assistant’s model provider, just like other information you show the assistant. The assistant and provider’s policies apply there. When a vault is configured, memory tools write Markdown notes in <code>Brainplug/Memory</code>; forgetting archives a memory rather than deleting its file.</p>',
+    controlTitle: 'Retention and deletion',
+    control: '<p>There is no automatic expiry for extension captures. You can pause capture, export a copy, or use “Delete everything saved” in the popup (press twice to confirm). Pausing does not delete earlier captures. Clearing the extension’s local data removes its stored records and setting. Clear the web app’s site data to remove checklist ticks, and close the tab to release its loaded files and result.</p><p>You control downloaded maps, exports, vault notes and MCP cache files on disk and can delete them yourself. Stopping the server and deleting its cache removes the stored index; it can be rebuilt from remaining sources. Deleting one copy does not delete exports or copies you shared. If you place outputs in a synced folder or give them to someone else, that service or recipient handles those copies.</p>',
+    hostingTitle: 'Website hosting',
+    hosting: '<p>The site is hosted on GitHub Pages. GitHub’s servers log requests as any web host does, including technical request information such as your IP address. Those hosting logs are separate from the files analysed in your tab; the web app does not upload their contents. GitHub handles hosting information under its own privacy policy.</p>',
+    contactTitle: 'Contact',
+    contact: '<p>For privacy questions, open an issue in the <a href="https://github.com/juanmariarodriguez2-png/brainplug/issues">Brainplug GitHub repository</a>. Issues are public: describe the problem without posting private writing, exports or tokens. GitHub handles information you post there under its own policies.</p>',
+    foot1: 'Brainplug is open source (MIT), built by Juan Rodríguez.', foot2: 'No cookies, no analytics.',
+  },
+  es: {
+    lang: 'EN / <b>ES</b>', navMemory: 'Memoria para tu IA', navReads: 'Qué lee', navHow: 'Cómo funciona',
+    title: 'Brainplug — política de privacidad', heading: 'Política de privacidad',
+    scope: 'Esta política cubre brainplug.app, la app web en /app/, la extensión Brainplug capture, el paquete de Python y su servidor MCP local. Brainplug es un proyecto de código abierto de Juan Rodríguez.',
+    updated: 'Actualizado el 14 de noviembre de 2026',
+    basicsTitle: 'Cuentas y rastreo',
+    basics: '<p>Brainplug no tiene cuentas, cookies, analítica, publicidad ni scripts de rastreo. No envía tus escritos a un servidor de Brainplug. La web y la app web cargan su código, fuentes y demás recursos desde este sitio; esta página de privacidad no carga nada de otros sitios.</p><p>Los datos se usan para capturar los mensajes que envías, analizar las fuentes que eliges, crear tu mapa y ofrecer las herramientas de memoria local que activas. Brainplug no vende datos ni hace de intermediario, no los transfiere a anunciantes ni intermediarios de datos, no los usa para fines ajenos a estas funciones ni para determinar la solvencia o conceder préstamos.</p>',
+    extensionTitle: 'Extensión de captura',
+    extension: '<p>La extensión guarda el texto que escribes y envías en ChatGPT (chatgpt.com y chat.openai.com), Claude, Gemini, Microsoft Copilot y Perplexity. Detecta el envío cuando pulsas Intro o Enviar y después se vacía el cuadro del mensaje. No lee ni guarda respuestas de la IA ni conserva borradores sin enviar. Cada registro contiene tu texto (hasta 20.000 caracteres), el nombre del sitio, un identificador de conversación, el título de la página cuando existe y la fecha y hora. Cualquier dato personal que incluyas en ese texto forma parte de la copia guardada.</p><p>Los registros y el ajuste de pausa se guardan en <code>chrome.storage.local</code> de este perfil del navegador, no en el almacenamiento sincronizado de Chrome. La extensión no hace peticiones de red y nunca envía los datos capturados a un servidor. Sus permisos de almacenamiento permiten guardar los registros y el ajuste localmente y mantener un historial que supere la cuota normal de almacenamiento local de Chrome.</p>',
+    bridgeTitle: 'Dentro del navegador',
+    bridge: '<p>En la app web de Brainplug, <code>bridge.js</code> facilita el número de mensajes guardados. Cuando eliges «Añadirlos», pasa los mensajes guardados a esa página mediante la mensajería de extensiones de Chrome y <code>window.postMessage</code>. La entrega ocurre dentro de tu navegador y no pasa por la red. El puente solo se ejecuta en páginas /app/ de brainplug.app, www.brainplug.app, 127.0.0.1 y localhost.</p><p>El panel de la extensión también permite guardar las capturas como archivo JSON en tu ordenador. Abrir la app web carga la app desde la web, sin enviar las capturas en esa petición. Los propios sitios de IA reciben los mensajes que les envías conforme a sus políticas, independientemente de Brainplug.</p>',
+    webTitle: 'App web',
+    web: '<p>La app web lee solo los archivos y carpetas que seleccionas y las capturas que decides añadir. Los analiza en la pestaña, con un worker del navegador, y no sube ninguno. Una vez cargados sus recursos, el análisis funciona sin conexión. El mapa generado contiene tus datos y se puede descargar como archivo HTML.</p><p>La app solo recuerda las casillas de la lista de solicitudes de exportación en <code>localStorage</code>, con claves que empiezan por <code>brainplug:export-requested:</code>. Esas marcas permanecen en este navegador hasta que las cambies o borres los datos del sitio. Los archivos seleccionados y el resultado generado se mantienen en la pestaña, no se guardan en localStorage.</p>',
+    pythonTitle: 'Paquete de Python',
+    python: '<p>El paquete de Python lee las fuentes locales que indicas y escribe los resultados que pides, como un mapa HTML, JSON, notas Markdown o un conjunto de datos enmascarado. Los archivos generados pueden contener tus escritos. Enmascarar no es anonimizar; revisa cualquier conjunto de datos antes de compartirlo.</p><p>El comando <code>brainplug app</code> sirve una interfaz local distinta en 127.0.0.1. Los archivos seleccionados allí se copian a una carpeta temporal de tu ordenador para analizarlos; esas copias se eliminan al reiniciar el formulario o cerrar normalmente el servidor. No se suben a un servicio remoto.</p><p>Si activas expresamente <code>--notion</code>, el paquete usa tu <code>NOTION_TOKEN</code> para solicitar directamente a api.notion.com las páginas compartidas con esa integración. Notion recibe esas peticiones autenticadas conforme a sus políticas. Brainplug no recibe el token ni las páginas en un servidor del proyecto.</p><p>Si añades <code>--sessions</code>, el paquete también lee los registros de sesiones de Claude Code y Codex que ya están en tu ordenador (<code>~/.claude/projects</code>, <code>~/.codex/sessions</code>). Solo conserva lo que tú escribiste: deja fuera las respuestas de los agentes, la salida de las herramientas y el texto que añaden, y sustituye por <code>[secret]</code> las claves y tokens que reconoce. Esos registros se leen donde están y no se suben.</p>',
+    mcpTitle: 'Servidor MCP local',
+    mcp: '<p>El servidor MCP (<code>brainplug/agent.py</code>) se ejecuta en tu ordenador y devuelve resúmenes, resultados de búsqueda, fragmentos y otra información solicitada al asistente que conectes. Por defecto guarda un índice, incluido texto de las fuentes y análisis, en la carpeta de caché del ordenador: <code>~/Library/Caches/brainplug</code> en macOS, <code>%LOCALAPPDATA%/brainplug</code> en Windows o <code>$XDG_CACHE_HOME/brainplug</code> (en su defecto <code>~/.cache/brainplug</code>) en Linux. <code>BRAINPLUG_CACHE</code> permite cambiar esa ubicación; <code>--no-cache</code> desactiva la caché en disco.</p><p>Lo que un asistente lee a través de MCP se envía al proveedor del modelo de ese asistente, igual que cualquier otra información que le enseñes. Allí se aplican las políticas del asistente y del proveedor. Si configuras una bóveda, las herramientas de memoria escriben notas Markdown en <code>Brainplug/Memory</code>; olvidar archiva un recuerdo en vez de borrar su archivo.</p>',
+    controlTitle: 'Conservación y borrado',
+    control: '<p>Las capturas de la extensión no caducan automáticamente. Puedes pausar la captura, exportar una copia o usar «Borrar todo lo guardado» en el panel (pulsa dos veces para confirmar). Pausar no borra las capturas anteriores. Borrar los datos locales de la extensión elimina sus registros y su ajuste. Borra los datos del sitio de la app web para quitar las marcas de la lista, y cierra la pestaña para liberar los archivos cargados y el resultado.</p><p>Tú controlas los mapas descargados, exportaciones, notas de la bóveda y archivos de caché del MCP en disco, y puedes borrarlos. Detener el servidor y borrar su caché elimina el índice guardado; se puede reconstruir a partir de las fuentes que queden. Borrar una copia no elimina exportaciones ni copias que hayas compartido. Si colocas resultados en una carpeta sincronizada o los entregas a otra persona, ese servicio o destinatario gestiona esas copias.</p>',
+    hostingTitle: 'Alojamiento web',
+    hosting: '<p>El sitio está alojado en GitHub Pages. Los servidores de GitHub registran peticiones como los de cualquier proveedor de alojamiento, incluida información técnica como tu dirección IP. Esos registros son independientes de los archivos analizados en tu pestaña; la app web no sube su contenido. GitHub trata la información del alojamiento conforme a su propia política de privacidad.</p>',
+    contactTitle: 'Contacto',
+    contact: '<p>Para consultas de privacidad, abre una incidencia en el <a href="https://github.com/juanmariarodriguez2-png/brainplug/issues">repositorio de Brainplug en GitHub</a>. Las incidencias son públicas: describe el problema sin publicar escritos privados, exportaciones ni tokens. GitHub trata lo que publiques allí conforme a sus propias políticas.</p>',
+    foot1: 'Brainplug es código abierto (MIT), creado por Juan Rodríguez.', foot2: 'Sin cookies ni analítica.',
+  },
+};
+let lang = new URLSearchParams(location.search).get('lang') || (navigator.language || 'en').slice(0, 2);
+lang = lang === 'es' ? 'es' : 'en';
+function apply() {
+  const T = TXT[lang];
+  document.documentElement.lang = lang;
+  document.title = T.title;
+  document.querySelectorAll('[data-i]').forEach(el => { el.innerHTML = el.classList.contains('say') ? `<span>${T[el.dataset.i]}</span>` : T[el.dataset.i]; });
+  document.getElementById('lang').innerHTML = T.lang;
+}
+document.getElementById('lang').onclick = () => { lang = lang === 'en' ? 'es' : 'en'; apply(); };
+apply();
+</script>
+</body>
+</html>
