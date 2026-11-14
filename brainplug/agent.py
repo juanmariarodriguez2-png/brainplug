@@ -320,6 +320,16 @@ class Brain:
             self.checked = self.rebuilt = time.monotonic()
             return True
 
+    def _own_write(self) -> None:
+        """Our own write is not an outside change: note the new fingerprint, in the background."""
+        def mark():
+            if self.busy.acquire(blocking=False):
+                try:
+                    self.seen = self._fingerprint()
+                finally:
+                    self.busy.release()
+        threading.Thread(target=mark, name="brainplug-seen", daemon=True).start()
+
     def _ready(self, wait: float = WAIT) -> Index | None:
         if not self.ready.wait(wait) or self.index is None:
             return None
@@ -390,8 +400,7 @@ class Brain:
             index = self._new_index(index.items)
             index.hidden = {j for j, it in enumerate(index.items) if it.id in hidden}
             self.index, i = index, index.items.index(item)
-        if not self.busy.locked():
-            self.seen = self._fingerprint()  # our own write is not an outside change
+        self._own_write()
         return index.codes[i]
 
     def remember(self, text: str, title: str = "", kind: str = "note", tags: list[str] | None = None,
@@ -412,14 +421,17 @@ class Brain:
                                        pin=pin, approved=False, replaces=index.items[old].title if old is not None else "")
             except ValueError as err:
                 return str(err)
-            if old is not None:
+            waits = (pin or kind == "preference")  # saved as pinned: pending
+            if old is not None and not waits:
                 memory.supersede(self.vault, index.items[old].title, path.stem)
                 index.hidden.add(old)
             code = self._index_memory(path) if self.index is not None else ""
         where = f"{memory.FOLDER}/{memory.MEMORY}/{path.name}"
         said = (f"Saved as #{code} in {where}" if code else f"Saved in {where}")
-        if old is not None:
+        if old is not None and not waits:
             said += f"; it replaces #{replaces.lstrip('#')}, which is archived and stays in the vault"
+        elif old is not None:
+            said += f"; once they approve it, it replaces #{replaces.lstrip('#')}, which stays in use until then"
         if pin or kind == "preference":
             said += (". It is a standing preference, so it waits for their approval before it becomes part of "
                      "`context`: tell them, and they can approve it with `brainplug brain <vault> --review` "
@@ -442,8 +454,7 @@ class Brain:
             if path is None:
                 return "That memory is no longer in the vault."
             index.hidden.add(i)
-            if not self.busy.locked():
-                self.seen = self._fingerprint()
+            self._own_write()
         return f"Archived {path.name}. The note is still in the vault, marked archived; it will not be used again."
 
     def exclude(self, item: str = "", source: str = "", reason: str = "", by: str = "") -> str:
@@ -522,7 +533,10 @@ class Brain:
                      if words and any(w in m["text"].lower() for w in words)]
             return self._waiting() + ("\nMeanwhile, from saved memories:\n" + "\n".join(
                 f"- {m['created'][:10]} · {_squash(m['text'])[:160]}" for m in found[:8]) if found else "")
-        limit = max(1, min(int(limit), 30))
+        with self.lock:  # remember() may be adding to this index at the same moment
+            return self._search(index, query, words, max(1, min(int(limit), 30)), source, order)
+
+    def _search(self, index: Index, query: str, words: list[str], limit: int, source: str, order: str) -> str:
         score = np.zeros(len(index.items))
         shared = np.zeros(len(index.items), dtype=bool)  # shares at least one word with the question
         if index.payload is not None:

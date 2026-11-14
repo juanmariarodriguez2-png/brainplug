@@ -284,3 +284,34 @@ def test_draft_about_me_from_your_writing(tmp_path, capsys):
     assert main(["brain", str(vault), "--draft-about"]) == 0  # never overwrites a filled note
     assert "already filled in" in capsys.readouterr().out
     assert (vault / "Brainplug" / "About me.md").read_text(encoding="utf-8") == about
+
+
+def test_a_pending_replacement_keeps_the_approved_preference_until_approved(tmp_path):
+    vault = tmp_path / "Vault"
+    notes_folder(vault, 20)
+    memory.remember(vault, "Answer me in Spanish", kind="preference", pin=True, source="me")
+    brain = Brain(sources.load([vault]), tz=TZ, n_topics=3, vault=vault)
+    old = brain.recall("answer spanish", source="memory").split(" ")[0]
+    said = brain.remember("Answer me in English", kind="preference", source="Claude", replaces=old)
+    assert "once they approve it" in said and "Keep in mind:\n- Answer me in Spanish" in brain.context()
+    [new] = memory.pending(vault)
+    memory.approve(vault, new["name"])
+    assert "Answer me in English" in brain.context() and "Answer me in Spanish" not in brain.context()
+
+
+def test_naming_one_topic_keeps_other_topics_names(tmp_path):
+    vault = tmp_path / "Vault"
+    memory.init(vault)
+    words = ["data", "model", "regression", "wages", "panel", "spain", "youth", "survey", "stata", "chart", "table", "thesis"]
+    memory.name_topic(vault, "Econometrics", words)
+    other = ["data", "model", "regression", "wages", "pandas", "csv", "plot", "column", "frame", "merge", "join", "index"]
+    memory.name_topic(vault, "Data work", other)
+    assert [n for n, _ in memory.topic_names(vault)] == ["Econometrics", "Data work"]
+
+
+def test_a_vault_inside_another_input_is_read_once(tmp_path):
+    vault = tmp_path / "Docs" / "Vault"
+    notes_folder(vault, 10)
+    (tmp_path / "Docs" / "elsewhere.md").write_text("a loose note outside the vault about tide pools", encoding="utf-8")
+    items = sources.load([vault, tmp_path / "Docs"])
+    assert len(items) == 11 and len({i.text for i in items}) == 11

@@ -30,6 +30,7 @@ def fake_which(found):
 def test_connect_adds_brainplug_to_every_assistant_found(home, tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(bc.shutil, "which", fake_which({"brainplug": "/opt/tools/brainplug"}))
     vault = tmp_path / "Vault"
+    vault.mkdir()
     claude = bc._app_config("Claude")
     claude.mkdir(parents=True)
     (claude / "claude_desktop_config.json").write_text(json.dumps({"mcpServers": {"other": {"command": "x"}}, "theme": "dark"}))
@@ -69,6 +70,7 @@ def test_connect_leaves_a_file_it_cannot_read(home, tmp_path, monkeypatch, capsy
     settings.mkdir(parents=True)
     commented = '{\n  // my servers\n  "servers": {}\n}\n'
     (settings / "mcp.json").write_text(commented)
+    (tmp_path / "Vault").mkdir()
     assert main(["connect", str(tmp_path / "Vault"), "--only", "vscode"]) == 0
     assert (settings / "mcp.json").read_text() == commented and "add this by hand" in capsys.readouterr().out
     assert bc.server_command(tmp_path / "Vault")[1][:2] == ["-m", "brainplug"]  # not installed as a command
@@ -106,3 +108,17 @@ def test_doctor_checks_everything_end_to_end(home, tmp_path, monkeypatch, capsys
     (home / ".cursor" / "mcp.json").write_text('{"mcpServers": {"brainplug": {"command": "/no/such/brainplug", "args": []}}}')
     assert main(["doctor", str(vault)]) == 1
     assert "brainplug connect" in capsys.readouterr().out
+
+
+def test_connect_refuses_a_vault_that_does_not_exist(home, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(bc.shutil, "which", fake_which({}))
+    (home / ".cursor").mkdir()
+    assert main(["connect", str(tmp_path / "MyVualt")]) == 2 and "does not exist" in capsys.readouterr().out
+    assert not (tmp_path / "MyVualt").exists() and not (home / ".cursor" / "mcp.json").exists()
+
+
+def test_a_hanging_assistant_cli_is_reported_not_fatal(monkeypatch):
+    def hang(*a, **k):
+        raise bc.subprocess.TimeoutExpired("claude", 60)
+    monkeypatch.setattr(bc.subprocess, "run", hang)
+    assert bc._run(["claude", "mcp", "add"]).returncode == 1

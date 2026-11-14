@@ -569,8 +569,10 @@ def parse_gemini_html(markup: str) -> list[Item]:
 # coding agents: Claude Code and Codex sessions (what you typed, not the agent's work)
 # --------------------------------------------------------------------------- #
 # Text the tools put on your side of a session: environment blocks, instructions, command echoes.
-_INJECTED = re.compile(r"^\s*(?:<[a-z][\w-]*(?:\s[^<>]*)?>|# AGENTS\.md instructions|Caveat: The messages below|"
-                       r"\[Request interrupted)", re.I)
+_INJECTED = re.compile(
+    r"^\s*(?:<(?:environment_context|user_instructions|user_shell_command|turn_aborted|system-reminder|task-notification"
+    r"|user-prompt-submit-hook|command-[a-z]+|local-command-[a-z]+|bash-[a-z]+)\b|# AGENTS\.md instructions"
+    r"|Caveat: The messages below|\[Request interrupted)", re.I)
 # Keys and tokens people paste into a coding session by mistake.
 SECRET = re.compile(
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----"
@@ -1015,12 +1017,15 @@ class _Loader:
         finally:
             self._zip_depth = depth
 
-    def folder(self, root: Path, is_vault: bool = False, hint: str = "") -> list[Item]:
+    def folder(self, root: Path, is_vault: bool = False, hint: str = "", skip: Iterable[Path] = ()) -> list[Item]:
         is_vault = is_vault or (root / ".obsidian").exists() or any(root.glob("*/.obsidian"))
+        inner = [s.relative_to(root.resolve()).parts for s in skip]  # folders also given on their own
         items: list[Item] = []
         for path in sorted(root.rglob("*")):
             rel = path.relative_to(root)
             if any(p.startswith(".") or p in SKIP_DIRS for p in rel.parts) or not path.is_file():
+                continue
+            if any(rel.parts[:len(parts)] == parts for parts in inner):
                 continue
             items += self.file(path, rel, "obsidian" if is_vault else "notes", inside=True, hint=hint)
         return items
@@ -1101,11 +1106,16 @@ def load(paths: Iterable[str | Path], me: Iterable[str] | None = None, pdf: bool
     paths = list(paths)
     loader = _Loader(me, pdf, notes)
     found: list[Item] = []
+    dirs = [Path(p).expanduser().resolve() for p in paths if Path(p).expanduser().is_dir()]
     for raw in paths:
         path = Path(raw).expanduser()
         if not path.exists():
             raise FileNotFoundError(f"Not found: {path}")
-        found += loader.folder(path) if path.is_dir() else loader.file(path, Path(path.name))
+        if path.is_dir():  # a folder given on its own is read once, from its own root
+            nested = [d for d in dirs if d != path.resolve() and d.is_relative_to(path.resolve())]
+            found += loader.folder(path, skip=nested)
+        else:
+            found += loader.file(path, Path(path.name))
     found += loader.whatsapp()
     items: dict[str, Item] = {}
     for item in found:

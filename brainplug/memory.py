@@ -227,6 +227,9 @@ def approve(vault: str | Path, name: str) -> Path | None:
     path = _find(vault, name)
     if path is not None:
         _update(path, {"pinned": "true"})
+        replaced = _split(path.read_text(encoding="utf-8", errors="ignore"))[0].get("replaces")
+        if replaced:  # the memory it corrects is archived only now
+            supersede(vault, replaced, path.stem)
     return path
 
 
@@ -311,7 +314,7 @@ def name_topic(vault: str | Path, name: str, terms: list[str]) -> Path:
     name, words = clean_topic_name(name), [w.lower() for w in terms if w]
     if not words:
         raise ValueError("That topic has no words to remember its name by.")
-    kept = [(n, t) for n, t in topic_names(vault) if len(set(t) & set(words)) * 3 < max(1, len(t))]
+    kept = [(n, t) for n, t in topic_names(vault) if len(set(t) & set(words)) * 2 < max(1, len(t))]
     path = init(vault) / TOPIC_NAMES
     lines = [f"- **{n}** · {', '.join(t)}" for n, t in kept + [(name, words)]]
     path.write_text(_NAMES_HEAD + "\n".join(lines) + "\n", encoding="utf-8")

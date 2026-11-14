@@ -187,7 +187,7 @@ export function parseGeminiHtml(markup) {
 
 // ---------------------------------------------- coding agents: Claude Code and Codex
 // Text the tools put on your side of a session: environment blocks, instructions, command echoes.
-const INJECTED = /^\s*(?:<[a-z][\w-]*(?:\s[^<>]*)?>|# AGENTS\.md instructions|Caveat: The messages below|\[Request interrupted)/i;
+const INJECTED = /^\s*(?:<(?:environment_context|user_instructions|user_shell_command|turn_aborted|system-reminder|task-notification|user-prompt-submit-hook|command-[a-z]+|local-command-[a-z]+|bash-[a-z]+)\b|# AGENTS\.md instructions|Caveat: The messages below|\[Request interrupted)/i;
 // Keys and tokens people paste into a coding session by mistake.
 export const SECRET = /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----|\b(?:sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})/g;
 const typed = value => {

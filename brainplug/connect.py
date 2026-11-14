@@ -156,7 +156,10 @@ def _merge_toml(path: Path, command: str, args: list[str], dry: bool) -> str:
 
 
 def _run(cmd: list[str]) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    except (subprocess.TimeoutExpired, OSError) as err:  # a CLI that hangs or vanished: report it, go on
+        return subprocess.CompletedProcess(cmd, 1, "", f"{type(err).__name__}: {err}")
 
 
 def connect_one(client: Client, command: str, args: list[str], dry: bool = False) -> str:
@@ -188,6 +191,9 @@ def connect(vault: str | Path | None, inputs: list[str] | None = None, only: lis
             return 2
         vault = known[0]
         say(f"Using your Obsidian vault {vault}" + (f" (the most recent of {len(known)})" if len(known) > 1 else ""))
+    if not Path(vault).expanduser().is_dir():
+        say(f"{vault} does not exist. Check the path, or create it first with: brainplug brain \"{vault}\"")
+        return 2
     if not dry:
         memory.init(vault)
     command, args = server_command(vault, inputs, sessions)

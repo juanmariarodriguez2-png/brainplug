@@ -122,6 +122,12 @@ def test_claude_code_and_codex_sessions_keep_only_what_you_typed(tmp_path, monke
     assert {i.source for i in load(Options(sessions=True), say=lambda _: None)} == {"claudecode", "codex"}
 
 
+def test_session_prompts_that_start_with_markup_are_kept():
+    assert sources._typed('<div class="card"> why does this not center?').startswith("<div")
+    assert sources._typed("<environment_context><cwd>/x</cwd></environment_context>") == ""
+    assert sources._typed("<command-name>/clear</command-name>") == ""
+
+
 def test_whatsapp_keeps_only_my_messages(tmp_path):
     (tmp_path / "WhatsApp Chat with Marta.txt").write_text(WHATSAPP_IOS, encoding="utf-8")
     notes: list[str] = []
