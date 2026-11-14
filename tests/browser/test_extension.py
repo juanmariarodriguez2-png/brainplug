@@ -10,24 +10,29 @@ EXT = str(ROOT / "extension")
 # its address and title a moment after the first message, like the real sites.
 MOCK = """<!doctype html><title>%(title)s</title><body><div id=log></div>
 %(box)s <button id=send aria-label="Send">send</button> <button id=other>attach</button>
+<button id=new>New chat</button> <button id=clear>Clear</button>
 <script>
-const box = document.getElementById('box'); let n = 0;
+let box = document.getElementById('box'), n = 0;
 const read = () => box.tagName === 'TEXTAREA' ? box.value : box.innerText;
 const clear = () => { if (box.tagName === 'TEXTAREA') box.value = ''; else box.innerHTML = '<p><br></p>'; };
+const replace = () => { const fresh = box.cloneNode(false); box.replaceWith(fresh); box = fresh; clear(); };
 function submit() {
   const text = read().trim(); if (!text) return;
   document.getElementById('log').insertAdjacentHTML('beforeend', '<div class=user></div><div>ASSISTANT ANSWER that must never be stored</div>');
   [...document.querySelectorAll('#log .user')].pop().textContent = text;
   clear();
+  if (window.replaceOnSend) replace();
   if (!n++) setTimeout(() => { history.pushState({}, '', '%(path)s'); document.title = '%(named)s'; }, 800);
 }
-box.addEventListener('keydown', e => {
-  if (e.key !== 'Enter' || e.shiftKey) return;
+document.addEventListener('keydown', e => {
+  if (e.target !== box || e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
   e.preventDefault();
   if (window.menuOpen) { window.menuOpen = false; if (box.tagName === 'TEXTAREA') box.value += ' @picked'; return; }
   submit();
 });
 document.getElementById('send').onclick = submit;
+document.getElementById('new').onclick = replace;
+document.getElementById('clear').onclick = clear;
 </script>"""
 EDITABLE = '<div id=box contenteditable="true"><p><br></p></div>'
 TEXTAREA = '<textarea id=box></textarea>'
@@ -61,6 +66,26 @@ def test_extension_keeps_only_what_you_send(site, chrome, tmp_path):
             return page
 
         gpt = chat("https://chatgpt.com/")  # Enter in a rich-text box; Shift+Enter is a line break, not a send
+        for control in ("#new", "#clear"):
+            gpt.fill("#box", "an unsent draft that must stay private")
+            gpt.click(control)
+            gpt.wait_for_timeout(1400)
+            assert worker.evaluate(STORED) == []
+        for replace_draft in (False, True):  # Enter needs an empty composer, not just a removed one
+            gpt.fill("#box", "a draft removed by Enter without sending")
+            gpt.evaluate("""replaceDraft => box.addEventListener('keydown', e => {
+                e.preventDefault(); e.stopPropagation();
+                if (replaceDraft) { const fresh = box.cloneNode(true); box.replaceWith(fresh); box = fresh; }
+                else box.remove();
+            }, {once: true})""", replace_draft)
+            gpt.keyboard.press("Enter")
+            gpt.wait_for_timeout(1400)
+            assert worker.evaluate(STORED) == []
+            if not replace_draft:
+                gpt.evaluate("document.body.prepend(box)")
+        gpt.fill("#box", "")
+        gpt.click("#box")
+        gpt.evaluate("window.replaceOnSend = true")  # first sends can remount the composer
         gpt.keyboard.type("how do I interpret the coefficients of a logistic regression")
         gpt.keyboard.press("Shift+Enter")
         gpt.keyboard.type("and what changes if I standardise the variables first")
@@ -75,6 +100,12 @@ def test_extension_keeps_only_what_you_send(site, chrome, tmp_path):
         claude.wait_for_timeout(1400)
         claude.click("#send")
         gemini = chat("https://gemini.google.com/app")  # Enter that picks a suggestion is not a send
+        for control in ("#new", "#clear"):
+            gemini.fill("#box", "another unsent draft that must stay private")
+            gemini.click(control)
+            gemini.wait_for_timeout(1400)
+            assert all("unsent draft" not in r["text"] for r in worker.evaluate(STORED))
+        gemini.click("#box")
         gemini.keyboard.type("compare index funds and ETFs for a long term portfolio")
         gemini.evaluate("window.menuOpen = true")
         gemini.keyboard.press("Enter")
@@ -129,4 +160,29 @@ def test_extension_keeps_only_what_you_send(site, chrome, tmp_path):
         popup.click("#clear")
         popup.wait_for_timeout(300)
         assert popup.evaluate(STORED) == [] and popup.inner_text("#say") == "0 messages saved"
+
+        # Each label source works on its own, including translated labels and role buttons.
+        for attribute, label in (("aria-label", "Enviar mensaje"), ("title", "Envoyer"),
+                                 ("data-testid", "send-button"), ("text", "Senden"),
+                                 ("text", "Invia"), ("type", "submit")):
+            claude.evaluate("""([attribute, label]) => {
+                const old = document.getElementById('send');
+                const button = document.createElement(attribute === 'data-testid' ? 'div' : 'button');
+                button.id = 'send'; button.setAttribute('role', 'button');
+                button.textContent = 'Go';
+                if (attribute === 'text') button.textContent = label;
+                else button.setAttribute(attribute, label);
+                if (attribute === 'type') {
+                    const form = document.createElement('form'); document.body.append(form);
+                    form.append(box); form.append(button);
+                    form.onsubmit = e => e.preventDefault(); old.remove();
+                } else old.replaceWith(button);
+                button.onclick = submit;
+            }""", [attribute, label])
+            message = f"sent using {attribute}: {label}"
+            claude.fill("#box", message)
+            claude.click("#send")
+            claude.wait_for_timeout(1400)
+            assert popup.evaluate(STORED)[-1]["text"] == message
+        assert len(popup.evaluate(STORED)) == 6
         ctx.close()
