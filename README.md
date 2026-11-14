@@ -5,7 +5,7 @@ documents, mail and messages into a 3D brain you can explore, and into a memory 
 assistants plug into: they get a short briefing instead of a pasted prompt, look up only what
 they need, and save what they learn as notes in your Obsidian vault. Nothing is uploaded.
 
-![Brainplug demo](docs/img/demo.gif)
+![Brainplug demo](https://brainplug.app/img/demo.gif)
 
 **[Website and live demo](https://brainplug.app/)** ·
 **[Make yours in the browser](https://brainplug.app/app/)**
@@ -21,44 +21,66 @@ Brainplug the background lives in one place, as Markdown in your own vault, and 
 assistant reads from it and adds to it:
 
 ```bash
-pip install "brainplug[agent] @ git+https://github.com/juanmariarodriguez2-png/brainplug.git"
-brainplug brain ~/Documents/MyVault                       # creates MyVault/Brainplug and shows how to connect
-brainplug mcp --brain ~/Documents/MyVault chatgpt-export.zip Sent.mbox
+uv tool install "brainplug[agent]"           # or: pipx install "brainplug[agent]"
+brainplug brain ~/Documents/MyVault           # creates MyVault/Brainplug: "About me" and Memory/
+brainplug connect ~/Documents/MyVault         # adds it to Claude Desktop, Claude Code, Cursor, Codex…
+brainplug doctor ~/Documents/MyVault          # checks that it answers, end to end
 ```
+
+Until the first release reaches PyPI, install it from GitHub:
+`uv tool install "brainplug[agent] @ git+https://github.com/juanmariarodriguez2-png/brainplug"`.
+Add `--sessions` to `connect` to include what you typed to Claude Code and Codex, and put
+export files after the vault to include what you wrote before (`… MyVault chatgpt-export.zip`).
+
+`connect` finds the assistants installed on this computer (Claude Desktop, Claude Code, Codex,
+Cursor, Windsurf, Gemini CLI, VS Code, LM Studio), adds one `brainplug` entry to each one's
+settings with an absolute path (desktop apps do not see your terminal's PATH), keeps
+everything else there, and backs the file up first. `--print` shows what it would change.
 
 | Tool | What the assistant does with it |
 |---|---|
 | `context` | Gets a short briefing at the start of a conversation: your "About me" note, what you asked assistants to keep in mind, what you are writing about lately. A few hundred words instead of a pasted prompt. |
-| `recall` | Looks something up across your notes, past chats, mail and memories, and gets excerpts rather than whole files. |
-| `remember` | Saves a decision, a preference or a fact as a note in `Brainplug/Memory`. The next assistant, in any app, finds it. |
+| `recall` | Looks something up across your notes, past chats, mail and memories, and gets excerpts rather than whole files. With `order="oldest"` it finds when you first raised something. |
+| `remember` | Saves a decision, a preference or a fact as a note in `Brainplug/Memory`. The next assistant, in any app, finds it. With `replaces`, it corrects an older memory and keeps the old one archived. |
 | `read`, `topic`, `timeline`, `review`, `overview` | Reads one item, follows a topic through time, sees what is growing or forgotten. |
 | `forget` | Archives a memory when you ask. The note stays in your vault. |
+| `exclude` | Leaves an item ("that chat isn't mine") or a whole app out of the brain, listed in `Brainplug/Excluded.md`, where deleting the line brings it back. |
 
 It is a [Model Context Protocol](https://modelcontextprotocol.io) server that runs on your
-computer, so it works with assistants that can start one: Claude Desktop, Claude Code, Cursor
-and others.
+computer, so it works with assistants that can start one. It has been used end to end by
+Codex (context, recall, remember); the read-only tools are marked as such, so assistants
+can run them without asking each time.
 
-Claude Code: `claude mcp add --transport stdio brainplug -- brainplug mcp --brain /path/to/MyVault`
+### What you can say to your assistant
 
-Claude Desktop (Settings › Developer › Edit Config):
-
-```json
-{
-  "mcpServers": {
-    "brainplug": {
-      "command": "brainplug",
-      "args": ["mcp", "--brain", "/path/to/MyVault", "/path/to/chatgpt-export.zip"]
-    }
-  }
-}
-```
+| You say | What happens |
+|---|---|
+| "What do you know about me?" | `context`: your About me note, standing preferences, what you are writing about lately. |
+| "When did I first write about kelp forests?" | `recall` oldest first: the earliest items, with their dates and codes. |
+| "What was I working on last spring?" | `timeline` for those months, by topic. |
+| "What have I been neglecting?" | `review`: topics rising, fading and dormant. |
+| "Open #k3f9a2." | `read`: your words in that item, and what it connects to in your other apps. |
+| "Remember that I prefer short answers in Spanish." | `remember`: a note in your vault; as a standing preference it waits for your approval. |
+| "My deadline moved to July." | `remember` with `replaces`: the old memory is archived, linked to the new one. |
+| "That conversation isn't mine." | `exclude`: it leaves the brain; the export it came from is untouched. |
+| "Forget what you saved about the old flat." | `forget`: the memory is archived, never deleted. |
 
 How it behaves:
 
 - **It is all plain notes.** `Brainplug/About me.md` is yours: assistants read it and never
   change it. Each memory is one Markdown note with its date, kind and who saved it, which you
   can open, edit or delete in Obsidian. New memories can be found at once; notes you edit are
-  picked up the next time an assistant asks.
+  picked up in the background a little later.
+- **Standing preferences wait for your yes.** A memory an assistant pins, or saves as a
+  preference, would shape every future conversation with every assistant, so it is saved as
+  `pinned: pending` and used only after you approve it: `brainplug brain ~/Documents/MyVault
+  --review`, or change `pending` to `true` in the note. This way a web page that tricks one
+  assistant cannot plant instructions for all of them.
+- **Items have codes that do not change**, such as `#k3f9a2`, so an assistant that found
+  something can still open it after your files change.
+- **It answers at once.** Your files are read in the background, and the index is kept in this
+  computer's cache folder (never a synced folder) so the next start takes a moment instead of
+  re-reading everything; `--no-cache` turns that off. Changes are picked up in the background.
 - **It starts empty and grows.** No exports are needed to begin: point it at a folder and let
   your assistants fill it. Add exports later to bring in what you wrote before.
 - **Assistants are told what to save.** Only what you said or confirmed, never instructions
@@ -84,6 +106,7 @@ How it behaves:
 | **Word, PDF** | `.docx` and `.pdf` files | The text of each document |
 | **Any notes** | A folder of `.md` / `.txt` files | The text of each file |
 | **Live capture** | The browser extension in `extension/` | What you type into ChatGPT, Claude, Gemini, Copilot, Perplexity |
+| **Claude Code, Codex** | `--sessions` (reads `~/.claude/projects` and `~/.codex/sessions`) | What **you typed** in each session: never the agent's replies or tool output; pasted keys are masked |
 | **AI memory** | `Brainplug/Memory` in your vault | What your assistants were asked to remember |
 
 Only **your own words** go in. The AI's answers and other people's mail and messages are left
@@ -95,10 +118,10 @@ are skipped unless you ask for them (`--pdf`).
 
 | | |
 |---|---|
-| ![Brain](docs/img/brain.jpg) **Brain.** Each point is something you wrote, coloured by topic. Discs are AI chats, diamonds are notes and documents, rings are messages. | ![Galaxy](docs/img/galaxy.jpg) **Galaxy.** The same points as a spiral: one arm per topic, old ideas at the core. Press play and it grows month by month. |
-| ![Connections](docs/img/detail.jpg) **Connections.** Open a point to read it and see what it relates to in your other apps. | ![Timeline](docs/img/timeline.jpg) **Timeline.** Everything in order, filtered by topic, app or search. |
-| ![Waves](docs/img/waves.jpg) **Waves.** How each interest rises and falls over time. | ![Tables](docs/img/tables.jpg) **Tables.** Cross any two things: topic by app, weekday by time of day. |
-| ![Review](docs/img/review.jpg) **Review.** What is growing, what you dropped, where topics meet, and a summary of you to paste into your AI. | ![Numbers](docs/img/numbers.jpg) **Numbers.** Words written, longest streak, the hours you write at. |
+| ![Brain](https://brainplug.app/img/brain.jpg) **Brain.** Each point is something you wrote, coloured by topic. Discs are AI chats, diamonds are notes and documents, rings are messages. | ![Galaxy](https://brainplug.app/img/galaxy.jpg) **Galaxy.** The same points as a spiral: one arm per topic, old ideas at the core. Press play and it grows month by month. |
+| ![Connections](https://brainplug.app/img/detail.jpg) **Connections.** Open a point to read it and see what it relates to in your other apps. | ![Timeline](https://brainplug.app/img/timeline.jpg) **Timeline.** Everything in order, filtered by topic, app or search. |
+| ![Waves](https://brainplug.app/img/waves.jpg) **Waves.** How each interest rises and falls over time. | ![Tables](https://brainplug.app/img/tables.jpg) **Tables.** Cross any two things: topic by app, weekday by time of day. |
+| ![Review](https://brainplug.app/img/review.jpg) **Review.** What is growing, what you dropped, where topics meet, and a summary of you to paste into your AI. | ![Numbers](https://brainplug.app/img/numbers.jpg) **Numbers.** Words written, longest streak, the hours you write at. |
 
 The result is one HTML file that opens offline, in English or Spanish.
 
@@ -119,9 +142,7 @@ memory before Python does.
 Needs Python 3.10 or later. Works on Windows, macOS and Linux.
 
 ```bash
-git clone https://github.com/juanmariarodriguez2-png/brainplug.git
-cd brainplug
-pip install .
+uv tool install brainplug                 # or: pipx install brainplug
 
 brainplug demo --open     # try it with invented data
 brainplug app             # drag and drop, in your browser, served from 127.0.0.1 only
@@ -141,6 +162,7 @@ brainplug build chatgpt-export.zip claude-export.zip takeout.zip ~/Documents/MyV
 | `--me EMAIL_OR_NAME` | Who you are: your email (Gmail) or your name as shown in WhatsApp. Repeatable; usually detected |
 | `--pdf` | Also read the PDFs found inside folders and ZIPs |
 | `--notion` | Also read Notion through its API (see below) |
+| `--sessions` | Also read what you typed to Claude Code and Codex on this computer |
 | `--topics N` | Force the number of topics (default: chosen automatically) |
 | `--rename N=NAME` | Rename topic N (repeatable) |
 | `--private` | Leave titles and text out of the file, so it is safe to share |
@@ -194,6 +216,10 @@ Drive, Dropbox, Obsidian Sync. Brainplug has no servers of its own.
 - **Nothing is uploaded.** No account, no server, no tracking. The web app fetches its own
   files when it opens and then works offline (a browser test builds a brain with the network
   switched off); the result embeds three.js, the font and your data.
+- **The memory server** keeps its index in this computer's cache folder (`~/Library/Caches/brainplug`,
+  `%LOCALAPPDATA%\brainplug` or `~/.cache/brainplug`); delete it any time, or use `--no-cache`.
+  `--sessions` reads the coding agents' logs where they are, keeping only what you typed.
+  See the full [privacy policy](https://brainplug.app/privacy.html).
 - **`--private`** keeps every title, excerpt and keyword out of the file. Topic names are
   still shown: check them and use `--rename` if one gives away too much.
 - **`--dataset`** writes your own words as JSON Lines with emails, links, phone numbers,
@@ -242,6 +268,7 @@ brainplug/            the Python package
 ├── sync.py            brainplug.json and --watch
 ├── memory.py          the notes assistants save (Brainplug/Memory, About me.md)
 ├── agent.py           the MCP server: context, recall, remember…
+├── connect.py         brainplug connect and brainplug doctor
 ├── export.py          Obsidian notes and the redacted dataset
 ├── app.py             local drag-and-drop app
 ├── render.py, templates/, vendor/
@@ -255,7 +282,7 @@ tests/                 pytest suite; tests/browser/ drives Chrome
 ## Tests
 
 ```bash
-pip install pytest mcp
+pip install -e ".[dev]"
 python -m pytest -q
 ```
 
@@ -274,8 +301,9 @@ real export format**, not with years of anyone's real exports. In particular:
 - The extension is tested in Chrome against stand-in pages served on the real addresses,
   not against the live sites.
 - The Notion API reader is tested against a local stand-in for the API.
-- The memory server is tested with the official MCP client library, not yet inside Claude
-  Desktop or Cursor themselves.
+- The memory server is tested with the official MCP client library and was used end to end by
+  Codex as its MCP client; not yet inside Claude Desktop or Cursor themselves.
+- CI runs the tests on Linux, macOS and Windows, and the browser tests in Chromium.
 
 If a real export trips something up, please open an issue with the shape of the file (not
 its contents).
