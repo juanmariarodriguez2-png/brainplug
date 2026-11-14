@@ -70,7 +70,7 @@ def run(o: Options, say: Callable[[str], None] = print) -> tuple[list[sources.It
     items = load(o, say)
     say(describe(items))
     payload = analysis.analyse(items, tz=local_tz(o.tz), n_topics=o.topics, private=o.private,
-                               rename=o.rename, title=o.title)
+                               rename=o.rename, title=o.title, names=sources.topic_names_in(o.inputs))
     say(f"Found {len(payload['topics'])} topics:")
     for t in payload["topics"]:
         say(f"  {t['id'] + 1:>2}. {t['name']:<34} {t['count']:>5} items  ({', '.join(t['terms'])})")

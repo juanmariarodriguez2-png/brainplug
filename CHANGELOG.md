@@ -12,6 +12,9 @@
 - `recall(order="oldest")` finds when you first raised something.
 - `remember(replaces=…)` corrects a memory and archives the old one, linked both ways.
 - `exclude` leaves an item or a whole source out (`Brainplug/Excluded.md`).
+- `name_topic` saves clearer topic names in `Brainplug/Topic names.md`, recognised by the topic's
+  words after it is recomputed, and used by built maps too (private ones included).
+- `brainplug brain VAULT --draft-about` drafts your "About me" note from your writing.
 - Read-only tools are marked as such, so assistants can run them without asking.
 - `brainplug connect` adds Brainplug to Claude Desktop, Claude Code, Codex, Cursor,
   Windsurf, Gemini CLI, VS Code and LM Studio with an absolute command and a backup;
@@ -22,6 +25,7 @@
   keys masked as `[secret]`).
 - The same chat in an export and a later capture is merged message by message instead of
   keeping only the longer copy; notes with the same name in two folders are both kept.
+- The detected Gmail address and WhatsApp name are shown, marked "unsure" when the evidence is weak.
 - ZIP files cannot exhaust disk or memory (depth, entries, compression ratio and size
   budgets; forged sizes are caught).
 

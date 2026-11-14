@@ -113,6 +113,8 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--pin", action="store_true", help="with --remember: make it part of the briefing")
     g.add_argument("--review", action="store_true",
                    help="approve or archive the preferences assistants saved, which wait for your yes")
+    g.add_argument("--draft-about", action="store_true",
+                   help='write a draft of your "About me" note from your writing (only while it is empty)')
     g.add_argument("--lang", choices=["en", "es"], default="en", help='language of the "About me" template')
     g.add_argument("--tz", help="time zone, e.g. Europe/Madrid (default: this computer's)")
     reading(g)
@@ -191,7 +193,7 @@ def main(argv: list[str] | None = None) -> int:
         missing = next((p for p in inputs if not Path(p).expanduser().exists()), None)
         if missing:
             ap.error(f"Not found: {missing}")
-        if args.cmd == "brain" and not args.context:
+        if args.cmd == "brain" and not args.context and not args.draft_about:
             from .connect import server_command
             command, server = server_command(vault)
             print(f"Your brain lives in {base}\n"
@@ -209,13 +211,22 @@ def main(argv: list[str] | None = None) -> int:
                   f"  brainplug brain \"{vault}\" --context")
             return 0
         o = Options(inputs=inputs, me=list(args.me or []), pdf=args.pdf, notion=args.notion)
-        if args.cmd == "brain":  # --context: read everything now and print the briefing
+        if args.cmd == "brain":  # --context or --draft-about: read everything now
             try:
                 items = load(o, log)
             except (FileNotFoundError, ValueError) as err:
                 ap.error(str(err))
             log(describe(items))
-            print(Brain(items, tz=local_tz(args.tz), vault=vault).context())
+            brain = Brain(items, tz=local_tz(args.tz), vault=vault)
+            if args.draft_about:
+                if brain.payload is None:
+                    print("There is not enough written yet to draft it: add your notes or exports after the vault.")
+                    return 1
+                path, draft, written = memory.draft_profile(vault, brain.payload)
+                print((f"Wrote a draft into {path}. Check it, and fill in the rest:\n" if written else
+                       f"{path} is already filled in, so it was left as it is. A draft to compare:\n") + draft)
+            if args.context:
+                print(brain.context())
             return 0
         quiet = lambda text: None  # noqa: E731
         key = json.dumps({"inputs": [str(Path(p).expanduser().resolve()) for p in inputs], "me": o.me,

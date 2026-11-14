@@ -344,7 +344,9 @@ function metaDate(meta) {
 
 // Notes Brainplug wrote itself are a copy of things already read, so they are skipped;
 // the memory folder and "About me" are read as the source "memory".
-const GENERATED = /(?:^|\/)Brainplug\/(?:Items\/|Topics\/|Brainplug\.md$|Excluded\.md$)/;
+const GENERATED = /(?:^|\/)Brainplug\/(?:Items\/|Topics\/|Brainplug\.md$|Excluded\.md$|Topic names\.md$)/;
+const TOPIC_NAMES = /(?:^|\/)Brainplug\/Topic names\.md$/;
+const NAME_LINE = /^\s*[-*]\s+\*\*(.+?)\*\*\s+·\s+(.+?)\s*$/;
 const EXCLUDED = /(?:^|\/)Brainplug\/Excluded\.md$/;
 const EXCLUDED_LINE = /^\s*[-*]\s+(source:\s*)?`([^`]+)`/;
 const MEMORY = /(?:^|\/)Brainplug\/(?:Memory\/|About me\.md$)/;
@@ -740,6 +742,13 @@ async function loadFile(file, rel, ctx, { noteSource = 'notes', inside = false, 
       ctx.chats.push(readWhatsapp(text, name, name || rel));
       return [];
     }
+    if (TOPIC_NAMES.test(rel)) {  // names the person gave topics, matched by their words
+      for (const line of text.split(/\r?\n/)) {
+        const m = NAME_LINE.exec(line);
+        if (m) ctx.topicNames.push([m[1].trim(), m[2].split(',').map(w => w.trim().toLowerCase()).filter(Boolean)]);
+      }
+      return [];
+    }
     if (EXCLUDED.test(rel)) {  // what the person asked to leave out of the brain
       const vault = rel.slice(0, rel.length - 'Brainplug/Excluded.md'.length);  // "" or "Vault/"
       for (const line of text.split(/\r?\n/)) {
@@ -800,7 +809,7 @@ export async function load(inputs, options = {}) {
     emails: me.filter(m => m.includes('@')), names: new Set(me.filter(m => !m.includes('@')).map(m => m.toLowerCase())),
     pdf: !!options.pdf, pdfText: options.pdfText, chats: [],
     progress: options.progress || (() => {}), note: text => { if (!notes.includes(text)) notes.push(text); },
-    excludedIds: new Set(), excludedSources: new Set(),
+    excludedIds: new Set(), excludedSources: new Set(), topicNames: [],
   };
   const found = [];
   const folders = new Map();
@@ -843,7 +852,7 @@ export async function load(inputs, options = {}) {
     } else if (it.words > old.words) items.set(it.id, it);  // an older and a newer export of the same thread
   }
   const kept = [...items.values()].filter(it => !ctx.excludedIds.has(it.id) && !ctx.excludedSources.has(it.source));
-  return { items: kept.sort((a, b) => a.created - b.created), notes };
+  return { items: kept.sort((a, b) => a.created - b.created), notes, topicNames: ctx.topicNames };
 }
 
 const same = text => text.split(/\s+/).filter(Boolean).join(' ');

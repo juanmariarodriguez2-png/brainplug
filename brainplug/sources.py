@@ -288,7 +288,7 @@ def _meta_date(meta: dict) -> datetime | None:
 
 # Notes Brainplug wrote itself (--vault) are a copy of things already read, so they are
 # skipped; the memory folder and "About me" are read as the source "memory".
-_GENERATED = re.compile(r"(?:^|/)Brainplug/(?:Items/|Topics/|Brainplug\.md$|Excluded\.md$)")
+_GENERATED = re.compile(r"(?:^|/)Brainplug/(?:Items/|Topics/|Brainplug\.md$|Excluded\.md$|Topic names\.md$)")
 _MEMORY = re.compile(r"(?:^|/)Brainplug/(?:Memory/|About me\.md$)")
 
 
@@ -1127,6 +1127,18 @@ def load(paths: Iterable[str | Path], me: Iterable[str] | None = None, pdf: bool
     left_out, left_out_sources = _exclusions(paths)
     return sorted((i for i in items.values() if i.id not in left_out and i.source not in left_out_sources),
                   key=lambda i: i.created)
+
+
+def topic_names_in(paths: Iterable) -> list[tuple[str, list[str]]]:
+    """Topic names saved in a vault you pass (Brainplug/Topic names.md)."""
+    from .memory import topic_names  # here: memory does not depend on this module
+    out: list[tuple[str, list[str]]] = []
+    for raw in paths:
+        root = Path(raw).expanduser()
+        if root.is_dir():
+            for note in [*root.glob("Brainplug/Topic names.md"), *root.glob("*/Brainplug/Topic names.md")]:
+                out += topic_names(note.parent.parent)
+    return out
 
 
 def _exclusions(paths: list) -> tuple[set[str], set[str]]:

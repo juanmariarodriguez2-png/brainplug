@@ -27,7 +27,9 @@ brainplug connect ~/Documents/MyVault         # adds it to Claude Desktop, Claud
 brainplug doctor ~/Documents/MyVault          # checks that it answers, end to end
 ```
 
-Until the first release reaches PyPI, install it from GitHub:
+`brainplug brain ~/Documents/MyVault --draft-about` writes a first draft of your "About me"
+note from what you have written, while it is still empty. Until the first release reaches PyPI,
+install it from GitHub:
 `uv tool install "brainplug[agent] @ git+https://github.com/juanmariarodriguez2-png/brainplug"`.
 Add `--sessions` to `connect` to include what you typed to Claude Code and Codex, and put
 export files after the vault to include what you wrote before (`… MyVault chatgpt-export.zip`).
@@ -45,6 +47,7 @@ everything else there, and backs the file up first. `--print` shows what it woul
 | `read`, `topic`, `timeline`, `review`, `overview` | Reads one item, follows a topic through time, sees what is growing or forgotten. |
 | `forget` | Archives a memory when you ask. The note stays in your vault. |
 | `exclude` | Leaves an item ("that chat isn't mine") or a whole app out of the brain, listed in `Brainplug/Excluded.md`, where deleting the line brings it back. |
+| `name_topic` | Gives a topic a clearer name you agreed to ("Econometrics" instead of "regression · heteroskedasticity"), saved in `Brainplug/Topic names.md` and used by the map too. |
 
 It is a [Model Context Protocol](https://modelcontextprotocol.io) server that runs on your
 computer, so it works with assistants that can start one. It has been used end to end by
@@ -64,6 +67,7 @@ can run them without asking each time.
 | "My deadline moved to July." | `remember` with `replaces`: the old memory is archived, linked to the new one. |
 | "That conversation isn't mine." | `exclude`: it leaves the brain; the export it came from is untouched. |
 | "Forget what you saved about the old flat." | `forget`: the memory is archived, never deleted. |
+| "Give my topics better names." | It suggests names from each topic's words; `name_topic` saves the ones you agree to. |
 
 How it behaves:
 

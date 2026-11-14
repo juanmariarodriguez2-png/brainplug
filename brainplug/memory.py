@@ -25,6 +25,7 @@ FOLDER = "Brainplug"
 MEMORY = "Memory"
 PROFILE = "About me.md"
 EXCLUDED = "Excluded.md"
+TOPIC_NAMES = "Topic names.md"
 PENDING = "pending"
 KINDS = ("note", "fact", "preference", "decision", "project")
 MAX_TEXT = 8000
@@ -270,3 +271,83 @@ def exclude(vault: str | Path, item_id: str = "", title: str = "", source: str =
     with open(path, "a", encoding="utf-8") as fh:
         fh.write(line + "\n")
     return path
+
+
+# --------------------------------------------------------------- topic names
+_NAMES_HEAD = """---
+kind: brainplug-topic-names
+---
+# Topic names
+
+Brainplug names a topic after its strongest words. A name here replaces that, for the topic
+whose words match. Edit or delete a line any time.
+
+"""
+_NAME_LINE = re.compile(r"^\s*[-*]\s+\*\*(.+?)\*\*\s+·\s+(.+?)\s*$")
+_NAME_OK = re.compile(r"^[\w][\w\s&'’.,()/+-]*$", re.UNICODE)
+
+
+def clean_topic_name(name: str) -> str:
+    """A short label: up to 5 words and 40 characters of letters, digits and simple punctuation."""
+    name = " ".join(str(name).split())
+    if not name or len(name) > 40 or len(name.split()) > 5 or not _NAME_OK.match(name):
+        raise ValueError("A topic name is 1 to 5 words (40 characters at most), letters, digits and simple punctuation.")
+    return name
+
+
+def topic_names(vault: str | Path) -> list[tuple[str, list[str]]]:
+    """The names in ``Brainplug/Topic names.md``, each with the words of the topic it names."""
+    path = brain_dir(vault) / TOPIC_NAMES
+    out = []
+    for line in path.read_text(encoding="utf-8", errors="ignore").splitlines() if path.exists() else []:
+        m = _NAME_LINE.match(line)
+        if m:
+            out.append((m.group(1).strip(), [w.strip().lower() for w in m.group(2).split(",") if w.strip()]))
+    return out
+
+
+def name_topic(vault: str | Path, name: str, terms: list[str]) -> Path:
+    """Save a name for the topic with these words, replacing any name it had."""
+    name, words = clean_topic_name(name), [w.lower() for w in terms if w]
+    if not words:
+        raise ValueError("That topic has no words to remember its name by.")
+    kept = [(n, t) for n, t in topic_names(vault) if len(set(t) & set(words)) * 3 < max(1, len(t))]
+    path = init(vault) / TOPIC_NAMES
+    lines = [f"- **{n}** · {', '.join(t)}" for n, t in kept + [(name, words)]]
+    path.write_text(_NAMES_HEAD + "\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
+# ------------------------------------------------------------- About me draft
+_DRAFT = {
+    "en": {"about": "What I write about most", "now": "What I am working on now", "where": "Where I write",
+           "when": "When I write", "at": "mostly on {day}s, around {hour}:00",
+           "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+           "mark": "a draft from your writing, {d}: check it, fill in the rest and delete what is wrong"},
+    "es": {"about": "Sobre lo que más escribo", "now": "En qué estoy trabajando ahora", "where": "Dónde escribo",
+           "when": "Cuándo escribo", "at": "sobre todo los {day}, hacia las {hour}:00",
+           "days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábados", "domingos"],
+           "mark": "un borrador a partir de lo que escribes, {d}: revísalo, completa el resto y borra lo que no sea cierto"},
+}
+
+
+def draft_profile(vault: str | Path, payload: dict) -> tuple[Path, str, bool]:
+    """A draft of "About me" from what the analysis found. Written into the note only while it
+    is still the empty template; returns (path, draft, written)."""
+    base = init(vault)
+    path = base / PROFILE
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    t = _DRAFT["es" if "# Sobre mí" in text else "en"]
+    topics, n, review = payload["topics"], payload["numbers"], payload["review"]
+    rising = [topics[x["k"]]["name"] for x in review["rising"][:3]]
+    lines = [(t["about"], ", ".join(x["name"] for x in topics[:4])),
+             (t["now"], ", ".join(rising) or ", ".join(x["name"] for x in topics[:2])),
+             (t["where"], ", ".join(s["name"] for s in n["sources"][:4])),
+             (t["when"], t["at"].format(day=t["days"][n["busiest_weekday"]], hour=n["busiest_hour"]))]
+    draft = "\n".join(f"- {k}: {v}" for k, v in lines if v)
+    if profile(vault):
+        return path, draft, False  # yours already: never overwritten
+    body = re.sub(rf"(?m)^- {re.escape(t['now'])}:[ \t]*\n?", "", text).rstrip("\n")
+    path.write_text(f"{body}\n\n<!-- {t['mark'].format(d=datetime.now().strftime('%Y-%m-%d'))} -->\n{draft}\n",
+                    encoding="utf-8")
+    return path, draft, True

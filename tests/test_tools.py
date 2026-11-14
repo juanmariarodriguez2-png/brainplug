@@ -75,7 +75,7 @@ def test_mcp_server_round_trip(tmp_path):
     finally:
         log.close()
     assert tools == ["context", "recall", "remember", "read", "forget", "exclude", "overview", "topic", "timeline",
-                     "review"]
+                     "review", "name_topic"]
     assert found.startswith("#") and "· Notes ·" in found
     note = vault / "Brainplug" / "Memory"
     [path] = list(note.glob("*Capstone topic.md"))

@@ -8,8 +8,8 @@ export { load, analyse, VERSION };
 
 /** Load the inputs and analyse them. Returns { payload, notes, sources }. */
 export async function build(inputs, options = {}) {
-  const { items, notes } = await load(inputs, options);
-  const payload = analyse(items, options);
+  const { items, notes, topicNames } = await load(inputs, options);
+  const payload = analyse(items, { ...options, names: topicNames });
   return { payload, notes };
 }
 

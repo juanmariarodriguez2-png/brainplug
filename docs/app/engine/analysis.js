@@ -522,13 +522,29 @@ function localShape(Z, d, idx) {
   return out;
 }
 
+const SIGNATURE = 12;  // words kept with a topic name, so it is recognised after the topic shifts a little
+
+// Names people saved (Brainplug/Topic names.md), matched by words: a name fits a topic when at least
+// a third of its saved words are among the topic's words. Same rule and order as analysis.match_names.
+export function matchNames(terms, names, skip = new Set()) {
+  const pairs = [];
+  terms.forEach((words, i) => names.forEach(([name, saved], j) => {
+    const shared = saved.filter(w => words.includes(w)).length;
+    if (!skip.has(i) && saved.length && shared * 3 >= saved.length) pairs.push([-shared / saved.length, -shared, i, j, name]);
+  }));
+  pairs.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2] || a[3] - b[3]);
+  const out = {}, used = new Set();
+  for (const [, , i, j, name] of pairs) if (!(i in out) && !used.has(j)) { out[i] = name; used.add(j); }
+  return out;
+}
+
 // ------------------------------------------------------------ main entry
 /**
  * items: from sources.load(). options: { topics, private, rename: {index: name}, title, seed, progress }.
  * Returns the same payload as brainplug.analysis.analyse(), ready for the viewer.
  */
 export function analyse(items, options = {}) {
-  const { topics: nTopics = null, private: isPrivate = false, rename = {}, title = 'My Brainplug', seed = 0, progress = () => {} } = options;
+  const { topics: nTopics = null, private: isPrivate = false, title = 'My Brainplug', seed = 0, progress = () => {}, names = [] } = options;
   if (items.length < 3) throw new Error('Need at least 3 items (chats, notes, documents or messages) to build a brainplug.');
   const rng = brain.makeRng(seed), n = items.length;
   let dated = items.map(it => it.dated);
@@ -552,6 +568,9 @@ export function analyse(items, options = {}) {
   const sizes = order.map(t => counts[t]);
 
   const terms = labelTopics(X, labels, k, vocab);
+  const sig = labelTopics(X, labels, k, vocab, SIGNATURE);  // words a saved topic name is matched by; never in the file
+  const given = options.rename || {};
+  const rename = { ...matchNames(sig, names, new Set(Object.keys(given).map(Number))), ...given };
   const topics = terms.map((t, i) => ({
     // keywords are words taken from your text: a private file keeps none of them
     id: i, name: rename[i] || (t.length ? t.slice(0, 2).join(' · ') : `Topic ${i + 1}`), terms: isPrivate ? [] : t,

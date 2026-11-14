@@ -218,3 +218,25 @@ def test_javascript_zip_safety_matches_python(tmp_path, monkeypatch, case):
     else:
         assert notes == js["notes"] == []
     assert "research research" not in js["text"]
+
+
+@pytest.mark.skipif(not NODE, reason="needs Node.js")
+def test_javascript_uses_saved_topic_names_like_python(tmp_path):
+    from brainplug import analysis, memory, sources
+    from helpers import notes_folder
+    folder = tmp_path / "inputs"
+    vault = folder / "Vault"
+    notes_folder(vault, 60)
+    keep: dict = {}
+    analysis.analyse(sources.load([vault]), n_topics=4, keep=keep)
+    memory.name_topic(vault, "Money & investing", keep["sig"][0])
+    py = analysis.analyse(sources.load([vault]), n_topics=4, names=sources.topic_names_in([vault]))
+    subprocess.run([NODE, str(ROOT / "tests" / "js" / "run_engine.mjs"), str(folder), str(tmp_path / "js.json"),
+                    "--topics", "4"], check=True, env=ENV, capture_output=True)
+    js = json.loads((tmp_path / "js.json").read_text(encoding="utf-8"))
+    # the automatic names can differ a little (clustering has a tolerance between engines);
+    # the saved name must land, in both, on a topic with the words it was saved with
+    saved = set(keep["sig"][0])
+    for payload in (py, js):
+        named = [t for t in payload["topics"] if t["name"] == "Money & investing"]
+        assert len(named) == 1 and set(named[0]["terms"]) & saved
