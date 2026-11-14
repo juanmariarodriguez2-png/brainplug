@@ -48,12 +48,14 @@ def test_mcp_server_round_trip(tmp_path):
 
     vault = tmp_path / "vault"
     notes_folder(vault)
+    log = open(tmp_path / "server.log", "w", encoding="utf-8")  # noqa: SIM115  (closed below)
 
     async def talk():
         params = StdioServerParameters(
             command=sys.executable, args=["-m", "brainplug", "mcp", "--brain", str(vault), "--topics", "6"],
             env={**os.environ, "PYTHONPATH": str(ROOT), "BRAINPLUG_CACHE": str(tmp_path / "cache")})
-        async with stdio_client(params) as (read, write):
+        # pass where the server's log goes: stdio_client's default is whatever sys.stderr was when mcp was imported
+        async with stdio_client(params, errlog=log) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 call = lambda name, **args: session.call_tool(name, args)  # noqa: E731
@@ -68,7 +70,10 @@ def test_mcp_server_round_trip(tmp_path):
                 approved = text(await call("context"))
                 return tools, found, saved, again, briefing, approved
 
-    tools, found, saved, again, briefing, approved = asyncio.run(asyncio.wait_for(talk(), timeout=90))
+    try:
+        tools, found, saved, again, briefing, approved = asyncio.run(asyncio.wait_for(talk(), timeout=90))
+    finally:
+        log.close()
     assert tools == ["context", "recall", "remember", "read", "forget", "exclude", "overview", "topic", "timeline",
                      "review"]
     assert found.startswith("#") and "· Notes ·" in found

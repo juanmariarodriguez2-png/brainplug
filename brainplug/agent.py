@@ -498,16 +498,23 @@ class Brain:
                 f"- {m['created'][:10]} · {_squash(m['text'])[:160]}" for m in found[:8]) if found else "")
         limit = max(1, min(int(limit), 30))
         score = np.zeros(len(index.items))
+        shared = np.zeros(len(index.items), dtype=bool)  # shares at least one word with the question
         if index.payload is not None:
             q = index.vec.transform([query])
             if q.nnz:
-                score += 0.6 * np.asarray((index.X @ q.T).todense()).ravel()
-                score += 0.4 * np.clip(index.Z @ normalize(index.svd.transform(q)).ravel(), 0, 1)
+                lexical = np.asarray((index.X @ q.T).todense()).ravel()
+                shared |= lexical > 0
+                score += 0.6 * lexical
+                if index.Z.shape[1] >= 10:  # with a handful of dimensions, likeness in meaning is mostly chance
+                    score += 0.4 * np.clip(index.Z @ normalize(index.svd.transform(q)).ravel(), 0, 1)
         if words:  # exact words still count when the model does not know them
             for i, low in enumerate(index.lower):
                 hits = sum(w in low for w in words)
                 if hits:
                     score[i] += 0.25 * hits / len(words)
+                    shared[i] = True
+        # with no word in common, only a clear likeness in meaning counts, not the noise of a small brain
+        score[~shared & (score < 0.12)] = 0
         if source:
             wanted = source.strip().lower()
             score[[i for i, it in enumerate(index.items) if wanted not in (it.source, index.source(i).lower())]] = 0
