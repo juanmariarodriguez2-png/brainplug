@@ -49,8 +49,9 @@ def test_javascript_engine_matches_python(tmp_path):
     folder = tmp_path / "inputs"
     write_inputs(folder, 300, pdf=False)
     inputs = sorted(str(p) for p in folder.iterdir())
+    # --tz as well as TZ: Node honours TZ everywhere, Python ignores it on Windows
     subprocess.run([sys.executable, "-m", "brainplug", "build", *inputs, "--topics", "9", "--title", "Parity",
-                    "-o", str(tmp_path / "py.html"), "--json", str(tmp_path / "py.json")],
+                    "--tz", ENV["TZ"], "-o", str(tmp_path / "py.html"), "--json", str(tmp_path / "py.json")],
                    check=True, env=ENV, capture_output=True)
     done = subprocess.run([NODE, str(ROOT / "tests" / "js" / "run_engine.mjs"), str(folder), str(tmp_path / "js.json"),
                            "--topics", "9", "--html"], check=True, env=ENV, capture_output=True, text=True)

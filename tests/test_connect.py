@@ -1,6 +1,7 @@
 """brainplug connect and brainplug doctor, against a pretend home folder (never your real settings)."""
 
 import json
+import os
 import sys
 
 import pytest
@@ -40,7 +41,7 @@ def test_connect_adds_brainplug_to_every_assistant_found(home, tmp_path, monkeyp
     desktop = json.loads((claude / "claude_desktop_config.json").read_text())
     assert desktop["theme"] == "dark" and desktop["mcpServers"]["other"] == {"command": "x"}  # nothing else changes
     entry = desktop["mcpServers"]["brainplug"]
-    assert entry == {"command": "/opt/tools/brainplug", "args": ["mcp", "--brain", str(vault.resolve())]}
+    assert entry == {"command": os.path.abspath("/opt/tools/brainplug"), "args": ["mcp", "--brain", str(vault.resolve())]}
     assert len(list(claude.glob("claude_desktop_config.json.*.bak"))) == 1  # a backup of what was there
     assert json.loads((home / ".cursor" / "mcp.json").read_text())["mcpServers"]["brainplug"] == entry
     assert json.loads((home / ".gemini" / "settings.json").read_text())["mcpServers"]["brainplug"] == entry
@@ -87,7 +88,7 @@ def test_connect_finds_your_obsidian_vault(home, tmp_path, monkeypatch, capsys):
     (home / ".cursor").mkdir()
     assert main(["connect"]) == 0
     assert f"Using your Obsidian vault {new} (the most recent of 2)" in capsys.readouterr().out
-    assert str(new.resolve()) in json.dumps(json.loads((home / ".cursor" / "mcp.json").read_text()))
+    assert str(new.resolve()) in json.loads((home / ".cursor" / "mcp.json").read_text())["mcpServers"]["brainplug"]["args"]
 
 
 def test_doctor_checks_everything_end_to_end(home, tmp_path, monkeypatch, capsys):
