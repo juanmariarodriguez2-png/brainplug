@@ -3,9 +3,16 @@
     <vault>/Brainplug/About me.md     what every assistant should know about you (you write it)
     <vault>/Brainplug/Memory/*.md     one note per thing an assistant was asked to remember
 
+    <vault>/Brainplug/Excluded.md     what you asked to leave out of the brain (one line each)
+
 Every memory is an ordinary note: open it in Obsidian, edit it, move it, delete
 it. Nothing is hidden and nothing leaves the folder. An assistant can add
 memories and archive them; it never edits "About me" and never deletes a file.
+
+What an assistant asks to keep as a standing preference (pinned, or of kind
+"preference") waits for your approval (``pinned: pending``) before it becomes
+part of every briefing, so a web page that tricked one assistant cannot plant
+instructions for all of them.
 """
 
 from __future__ import annotations
@@ -17,6 +24,8 @@ from pathlib import Path
 FOLDER = "Brainplug"
 MEMORY = "Memory"
 PROFILE = "About me.md"
+EXCLUDED = "Excluded.md"
+PENDING = "pending"
 KINDS = ("note", "fact", "preference", "decision", "project")
 MAX_TEXT = 8000
 TEMPLATE_MARK = "brainplug: fill this in"
@@ -105,8 +114,13 @@ def _tag(tag: str) -> str:
 
 
 def remember(vault: str | Path, text: str, title: str = "", kind: str = "note", tags: list[str] | tuple = (),
-             source: str = "", pin: bool = False, when: datetime | None = None) -> Path:
-    """Save one memory as a note in ``Brainplug/Memory`` and return its path."""
+             source: str = "", pin: bool = False, when: datetime | None = None, approved: bool = True,
+             replaces: str = "") -> Path:
+    """Save one memory as a note in ``Brainplug/Memory`` and return its path.
+
+    ``approved=False`` is for memories an assistant saves: a pinned one, or a
+    preference, is marked ``pinned: pending`` until the person approves it.
+    ``replaces`` names the memory note this one corrects (see ``supersede``)."""
     text = " ".join(str(text).split()) if "\n" not in str(text).strip() else str(text).strip()
     if not text:
         raise ValueError("There is nothing to remember: the text is empty.")
@@ -117,20 +131,27 @@ def remember(vault: str | Path, text: str, title: str = "", kind: str = "note", 
     named = bool(_safe(title))
     title = _safe(title) or _safe(" ".join(text.split()[:9])) or "Memory"
     stem = f"{when:%Y-%m-%d} {title}"
-    path, n = folder / f"{stem}.md", 2
-    while path.exists():  # never overwrite an existing note
-        path = folder / f"{stem} {n}.md"
-        n += 1
     labels = ["brainplug/memory", f"brainplug/{kind}", *[t for t in map(_tag, tags) if t]]
     head = ["---", f"created: {when.isoformat(timespec='seconds')}", f"kind: {kind}"]
     if _safe(source):
         head.append(f"saved_by: {_safe(source, 40)}")
-    if pin:
+    if (pin or kind == "preference") and not approved:
+        head.append(f"pinned: {PENDING}")  # a standing preference waits for the person's yes
+    elif pin:
         head.append("pinned: true")
+    if _safe(replaces, 200):
+        head.append(f"replaces: {_safe(replaces, 200)}")
     head += [f"tags: [{', '.join(dict.fromkeys(labels))}]", "---", ""]
     head += [f"# {title}", "", text, ""] if named else [text, ""]  # an untitled memory is named after its own words
-    path.write_text("\n".join(head), encoding="utf-8")
-    return path
+    n = 1
+    while True:  # never overwrite a note, even when two assistants save at the same moment
+        path = folder / (f"{stem}.md" if n == 1 else f"{stem} {n}.md")
+        try:
+            with open(path, "x", encoding="utf-8") as fh:
+                fh.write("\n".join(head))
+            return path
+        except FileExistsError:
+            n += 1
 
 
 def memories(vault: str | Path) -> list[dict]:
@@ -142,22 +163,110 @@ def memories(vault: str | Path) -> list[dict]:
         if meta.get("archived", "").lower() == "true":
             continue
         body = re.sub(r"^# .*\n+", "", body, count=1).strip()
+        pinned = meta.get("pinned", "").lower()
         out.append({"path": path, "name": path.stem, "created": meta.get("created", ""), "kind": meta.get("kind", "note"),
-                    "pinned": meta.get("pinned", "").lower() == "true", "by": meta.get("saved_by", ""), "text": body})
+                    "pinned": pinned == "true", "pending": pinned == PENDING, "by": meta.get("saved_by", ""),
+                    "text": body})
     out.sort(key=lambda m: (m["created"], m["name"]), reverse=True)
     return out
+
+
+def _find(vault: str | Path, name: str) -> Path | None:
+    folder = brain_dir(vault) / MEMORY
+    wanted = _safe(Path(str(name)).stem, 200).lower()
+    for path in sorted(folder.glob("*.md")) if folder.exists() and wanted else []:
+        if path.stem.lower() == wanted:
+            return path
+    return None
+
+
+def _update(path: Path, changes: dict[str, str | None]) -> None:
+    """Set (or, with None, remove) flat frontmatter fields and leave the rest of the note as it is."""
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    end = text.find("\n---", 3) if text.startswith("---") else -1
+    head = text[3:end].strip("\n").split("\n") if end >= 0 else []
+    rest = text[end + 4:] if end >= 0 else "\n" + text
+    out, done = [], set()
+    for line in head:
+        key = line.partition(":")[0].strip().lower()
+        if key in changes and not line[:1].isspace():
+            if changes[key] is not None and key not in done:
+                out.append(f"{key}: {changes[key]}")
+                done.add(key)
+            continue
+        out.append(line)
+    out += [f"{k}: {v}" for k, v in changes.items() if v is not None and k not in done]
+    path.write_text("---\n" + "\n".join(line for line in out if line.strip()) + "\n---" + rest, encoding="utf-8")
 
 
 def forget(vault: str | Path, name: str) -> Path | None:
     """Archive a memory by its note name. The note stays in the vault, marked ``archived: true``,
     and is no longer read; delete the file yourself if you want it gone."""
-    folder = brain_dir(vault) / MEMORY
-    wanted = _safe(Path(str(name)).stem, 200).lower()
-    for path in sorted(folder.glob("*.md")) if folder.exists() and wanted else []:
-        if path.stem.lower() == wanted:
-            text = path.read_text(encoding="utf-8", errors="ignore")
-            if text.startswith("---") and "\narchived: true" not in text[:text.find("\n---", 3) + 1]:
-                text = text.replace("---\n", "---\narchived: true\n", 1)
-                path.write_text(text, encoding="utf-8")
-            return path
-    return None
+    path = _find(vault, name)
+    if path is not None:
+        _update(path, {"archived": "true"})
+    return path
+
+
+def supersede(vault: str | Path, old: str, new: str) -> Path | None:
+    """Archive memory ``old`` because memory ``new`` corrects it; each note names the other."""
+    path = _find(vault, old)
+    if path is not None:
+        _update(path, {"archived": "true", "superseded_by": _safe(new, 200)})
+    return path
+
+
+def pending(vault: str | Path) -> list[dict]:
+    """Memories assistants saved as standing preferences that still wait for the person's approval."""
+    return [m for m in memories(vault) if m["pending"]]
+
+
+def approve(vault: str | Path, name: str) -> Path | None:
+    """The person agrees: the memory becomes part of every briefing."""
+    path = _find(vault, name)
+    if path is not None:
+        _update(path, {"pinned": "true"})
+    return path
+
+
+# ---------------------------------------------------------------- exclusions
+_EXCLUDED_HEAD = """---
+kind: brainplug-exclusions
+---
+# Left out of Brainplug
+
+Everything listed here stays out of your brain: the map, search and what assistants read.
+Delete a line to bring it back.
+
+"""
+_EXCLUDED_LINE = re.compile(r"^\s*[-*]\s+(source:\s*)?`([^`]+)`")
+
+
+def exclusions(vault: str | Path) -> tuple[set[str], set[str]]:
+    """The item ids and the sources listed in ``Brainplug/Excluded.md``."""
+    path = brain_dir(vault) / EXCLUDED
+    ids: set[str] = set()
+    sources: set[str] = set()
+    if path.exists():
+        for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            m = _EXCLUDED_LINE.match(line)
+            if m:
+                (sources if m.group(1) else ids).add(m.group(2).strip())
+    return ids, sources
+
+
+def exclude(vault: str | Path, item_id: str = "", title: str = "", source: str = "", by: str = "",
+            reason: str = "") -> Path:
+    """Add one line to ``Brainplug/Excluded.md``: an item, or a whole source, to leave out."""
+    item_id, source = item_id.replace("`", ""), re.sub(r"[^a-z0-9]", "", source.lower())
+    if not item_id and not source:
+        raise ValueError("Say which item or which source to leave out.")
+    path = init(vault) / EXCLUDED
+    if not path.exists():
+        path.write_text(_EXCLUDED_HEAD, encoding="utf-8")
+    line = f"- source: `{source}`" if source else f"- `{item_id}` · {_safe(title, 80) or 'untitled'}"
+    line += f" · {datetime.now():%Y-%m-%d}" + (f" · by {_safe(by, 40)}" if _safe(by) else "")
+    line += f": {' '.join(str(reason).split())[:200]}" if str(reason).strip() else ""
+    with open(path, "a", encoding="utf-8") as fh:
+        fh.write(line + "\n")
+    return path

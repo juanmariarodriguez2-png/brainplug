@@ -108,3 +108,23 @@ def test_javascript_merges_and_keeps_like_python(tmp_path):
     js = json.loads((tmp_path / "js.json").read_text(encoding="utf-8"))
     assert len(py) == 3 and js["numbers"]["items"] == 3
     assert js["numbers"]["words"] == sum(i.words for i in py)
+
+
+@pytest.mark.skipif(not NODE, reason="needs Node.js")
+def test_javascript_leaves_out_what_you_excluded(tmp_path):
+    from brainplug import memory, sources
+    from helpers import notes_folder
+    folder = tmp_path / "inputs"
+    vault = folder / "Vault"
+    notes_folder(vault, 12)
+    victim = next(i for i in sources.load([vault]) if i.source != "memory")
+    memory.exclude(vault, item_id=victim.id, title=victim.title, by="test")
+    py = sources.load([vault])
+    assert victim.id not in {i.id for i in py}
+    kind, _, rest = victim.id.partition(":")
+    outer = {i.id for i in sources.load([folder])}  # the vault inside what you pass: ids carry its name
+    assert f"{kind}:Vault/{rest}" not in outer and len(outer) == len(py)
+    subprocess.run([NODE, str(ROOT / "tests" / "js" / "run_engine.mjs"), str(folder), str(tmp_path / "js.json"),
+                    "--topics", "3"], check=True, env=ENV, capture_output=True)
+    js = json.loads((tmp_path / "js.json").read_text(encoding="utf-8"))
+    assert js["numbers"]["items"] == len(py) == 11

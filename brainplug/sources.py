@@ -277,7 +277,7 @@ def _meta_date(meta: dict) -> datetime | None:
 
 # Notes Brainplug wrote itself (--vault) are a copy of things already read, so they are
 # skipped; the memory folder and "About me" are read as the source "memory".
-_GENERATED = re.compile(r"(?:^|/)Brainplug/(?:Items/|Topics/|Brainplug\.md$)")
+_GENERATED = re.compile(r"(?:^|/)Brainplug/(?:Items/|Topics/|Brainplug\.md$|Excluded\.md$)")
 _MEMORY = re.compile(r"(?:^|/)Brainplug/(?:Memory/|About me\.md$)")
 
 
@@ -866,6 +866,7 @@ def load(paths: Iterable[str | Path], me: Iterable[str] | None = None, pdf: bool
     ``pdf``   also read the PDFs found inside folders and ZIPs.
     ``notes`` a list that receives human-readable remarks (skipped inputs…).
     """
+    paths = list(paths)
     loader = _Loader(me, pdf, notes)
     found: list[Item] = []
     for raw in paths:
@@ -891,7 +892,27 @@ def load(paths: Iterable[str | Path], me: Iterable[str] | None = None, pdf: bool
             items[item.id] = item
         elif item.words > old.words:
             items[item.id] = item  # an older and a newer export of the same thread
-    return sorted(items.values(), key=lambda i: i.created)
+    left_out, left_out_sources = _exclusions(paths)
+    return sorted((i for i in items.values() if i.id not in left_out and i.source not in left_out_sources),
+                  key=lambda i: i.created)
+
+
+def _exclusions(paths: list) -> tuple[set[str], set[str]]:
+    """What the person asked to leave out (Brainplug/Excluded.md in a vault you pass)."""
+    from .memory import exclusions  # here: memory does not depend on this module
+    ids: set[str] = set()
+    names: set[str] = set()
+    for raw in paths:
+        root = Path(raw).expanduser()
+        if root.is_dir():
+            for note in [*root.glob("Brainplug/Excluded.md"), *root.glob("*/Brainplug/Excluded.md")]:
+                vault = note.parent.parent
+                more_ids, more_names = exclusions(vault)
+                ids |= more_ids
+                names |= more_names
+                if vault != root:  # the vault is a folder inside what you passed: its notes' ids say so
+                    ids |= {f"{s}:{vault.name}/{rest}" for s, _, rest in (i.partition(":") for i in more_ids)}
+    return ids, names
 
 
 def _same(text: str) -> str:

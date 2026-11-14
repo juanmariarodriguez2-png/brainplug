@@ -267,7 +267,9 @@ function metaDate(meta) {
 
 // Notes Brainplug wrote itself are a copy of things already read, so they are skipped;
 // the memory folder and "About me" are read as the source "memory".
-const GENERATED = /(?:^|\/)Brainplug\/(?:Items\/|Topics\/|Brainplug\.md$)/;
+const GENERATED = /(?:^|\/)Brainplug\/(?:Items\/|Topics\/|Brainplug\.md$|Excluded\.md$)/;
+const EXCLUDED = /(?:^|\/)Brainplug\/Excluded\.md$/;
+const EXCLUDED_LINE = /^\s*[-*]\s+(source:\s*)?`([^`]+)`/;
 const MEMORY = /(?:^|\/)Brainplug\/(?:Memory\/|About me\.md$)/;
 
 function parseNote(text, path, rel, source, mtime) {
@@ -644,6 +646,20 @@ async function loadFile(file, rel, ctx, { noteSource = 'notes', inside = false, 
       ctx.chats.push(readWhatsapp(text, name, name || rel));
       return [];
     }
+    if (EXCLUDED.test(rel)) {  // what the person asked to leave out of the brain
+      const vault = rel.slice(0, rel.length - 'Brainplug/Excluded.md'.length);  // "" or "Vault/"
+      for (const line of text.split(/\r?\n/)) {
+        const m = EXCLUDED_LINE.exec(line);
+        if (!m) continue;
+        const id = m[2].trim(), at = id.indexOf(':');
+        if (m[1]) ctx.excludedSources.add(id);
+        else {
+          ctx.excludedIds.add(id);
+          if (vault && at > 0) ctx.excludedIds.add(`${id.slice(0, at)}:${vault}${id.slice(at + 1)}`);
+        }
+      }
+      return [];
+    }
     if (GENERATED.test(rel)) return [];
     const note = ext !== '.txt' && NOTION_ID.test(stem(file.path))
       ? parseNotionPage(text, file.path, rel, file.mtime) : parseNote(text, file.path, rel, MEMORY.test(rel) ? 'memory' : noteSource, file.mtime);
@@ -682,6 +698,7 @@ export async function load(inputs, options = {}) {
     emails: me.filter(m => m.includes('@')), names: new Set(me.filter(m => !m.includes('@')).map(m => m.toLowerCase())),
     pdf: !!options.pdf, pdfText: options.pdfText, chats: [],
     progress: options.progress || (() => {}), note: text => { if (!notes.includes(text)) notes.push(text); },
+    excludedIds: new Set(), excludedSources: new Set(),
   };
   const found = [];
   const folders = new Map();
@@ -716,7 +733,8 @@ export async function load(inputs, options = {}) {
       items.set(it.id, it);
     } else if (it.words > old.words) items.set(it.id, it);  // an older and a newer export of the same thread
   }
-  return { items: [...items.values()].sort((a, b) => a.created - b.created), notes };
+  const kept = [...items.values()].filter(it => !ctx.excludedIds.has(it.id) && !ctx.excludedSources.has(it.source));
+  return { items: kept.sort((a, b) => a.created - b.created), notes };
 }
 
 const same = text => text.split(/\s+/).filter(Boolean).join(' ');

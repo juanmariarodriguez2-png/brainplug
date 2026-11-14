@@ -106,6 +106,8 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--remember", metavar="TEXT", help="save a memory yourself, from the terminal")
     g.add_argument("--kind", choices=["note", "fact", "preference", "decision", "project"], default="note")
     g.add_argument("--pin", action="store_true", help="with --remember: make it part of the briefing")
+    g.add_argument("--review", action="store_true",
+                   help="approve or archive the preferences assistants saved, which wait for your yes")
     g.add_argument("--lang", choices=["en", "es"], default="en", help='language of the "About me" template')
     g.add_argument("--tz", help="time zone, e.g. Europe/Madrid (default: this computer's)")
     reading(g)
@@ -116,6 +118,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="your vault: it is read, and assistants can save memories in DIR/Brainplug/Memory")
     m.add_argument("--topics", type=int, help="number of topics (default: automatic)")
     m.add_argument("--tz", help="time zone, e.g. Europe/Madrid (default: this computer's)")
+    m.add_argument("--no-cache", action="store_true",
+                   help="do not keep the index in this computer's cache folder (slower starts)")
     reading(m)
 
     args = ap.parse_args(argv)
@@ -141,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd in ("mcp", "brain"):
         from . import memory
-        from .agent import Brain, make_server
+        from .agent import Brain, cache_file, make_server
         vault = getattr(args, "brain", None) or getattr(args, "vault", None)
         if args.cmd == "mcp" and not args.inputs and not args.notion and not vault:
             ap.error("mcp needs your vault or your files, e.g.: brainplug mcp --brain ~/Vault export.zip")
@@ -149,6 +153,8 @@ def main(argv: list[str] | None = None) -> int:
             path = memory.remember(vault, args.remember, kind=args.kind, pin=args.pin, source="me")
             print(f"Saved {path.resolve()}")
             return 0
+        if args.cmd == "brain" and args.review:
+            return review(vault)
         log = lambda text: print(text, file=sys.stderr)  # noqa: E731  (stdout belongs to the protocol)
         inputs = list(args.inputs)
         if vault:
@@ -156,6 +162,9 @@ def main(argv: list[str] | None = None) -> int:
             vault = str(Path(vault).expanduser().resolve())
             if vault not in [str(Path(p).expanduser().resolve()) for p in inputs]:
                 inputs.insert(0, vault)
+        missing = next((p for p in inputs if not Path(p).expanduser().exists()), None)
+        if missing:
+            ap.error(f"Not found: {missing}")
         if args.cmd == "brain" and not args.context:
             server = ["mcp", "--brain", vault]
             print(f"Your brain lives in {base}\n"
@@ -170,20 +179,22 @@ def main(argv: list[str] | None = None) -> int:
                   f"For an assistant without MCP, print a briefing to paste:\n"
                   f"  brainplug brain \"{vault}\" --context")
             return 0
-        try:
-            o = Options(inputs=inputs, me=list(args.me or []), pdf=args.pdf, notion=args.notion)
-            quiet = lambda text: None  # noqa: E731
-            items = load(o, log)
+        o = Options(inputs=inputs, me=list(args.me or []), pdf=args.pdf, notion=args.notion)
+        if args.cmd == "brain":  # --context: read everything now and print the briefing
+            try:
+                items = load(o, log)
+            except (FileNotFoundError, ValueError) as err:
+                ap.error(str(err))
             log(describe(items))
-            brain = Brain(items, tz=local_tz(args.tz), n_topics=getattr(args, "topics", None), vault=vault,
-                          loader=lambda: load(o, quiet), watch=inputs)
-        except (FileNotFoundError, ValueError) as err:
-            ap.error(str(err))
-        if args.cmd == "brain":
-            print(brain.context())
+            print(Brain(items, tz=local_tz(args.tz), vault=vault).context())
             return 0
-        log(f"Brainplug is ready: {len(brain.items)} items" + (f", memories go to {vault}" if vault else "")
-            + ". Waiting for an MCP client…")
+        quiet = lambda text: None  # noqa: E731
+        key = json.dumps({"inputs": [str(Path(p).expanduser().resolve()) for p in inputs], "me": o.me,
+                          "pdf": o.pdf, "notion": o.notion, "topics": args.topics, "tz": args.tz}, sort_keys=True)
+        brain = Brain(tz=local_tz(args.tz), n_topics=args.topics, vault=vault, loader=lambda: load(o, quiet),
+                      watch=inputs, cache=None if args.no_cache else cache_file(key), log=log).start()
+        log("Brainplug is answering; your files are read in the background"
+            + (f", and memories go to {vault}" if vault else "") + ".")
         make_server(brain).run()
         return 0
 
@@ -215,6 +226,33 @@ def main(argv: list[str] | None = None) -> int:
         ap.error(str(err))
     if args.open:
         webbrowser.open(Path(o.out).resolve().as_uri())
+    return 0
+
+
+def review(vault: str) -> int:
+    """Go through the preferences assistants saved, which wait for your approval."""
+    from . import memory
+    waiting = memory.pending(vault)
+    if not waiting:
+        print("Nothing waits for your approval.")
+        return 0
+    print(f"{len(waiting)} preference(s) saved by assistants wait for your approval. "
+          "Approved ones become part of every briefing.\n")
+    for m in waiting:
+        print(f"{m['created'][:10]} · saved by {m['by'] or 'an assistant'} · {m['kind']}\n  "
+              + " ".join(m["text"].split())[:400])
+        try:
+            answer = input("Approve it? [y]es / [n]o, archive it / anything else: later  ").strip().lower()
+        except EOFError:
+            break
+        if answer.startswith(("y", "s")):  # yes / sí
+            memory.approve(vault, m["name"])
+            print("  approved\n")
+        elif answer.startswith("n"):
+            memory.forget(vault, m["name"])
+            print("  archived (the note stays in your vault)\n")
+        else:
+            print("  left for later\n")
     return 0
 
 
