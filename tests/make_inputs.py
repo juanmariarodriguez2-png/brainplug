@@ -163,3 +163,27 @@ def write_inputs(out: Path, n: int = 240, pdf: bool = True) -> dict[str, int]:
 
 if __name__ == "__main__":
     print(write_inputs(Path(sys.argv[1]), int(sys.argv[2]) if len(sys.argv) > 2 else 240))
+
+
+def write_overlap(out: Path) -> None:
+    """One ChatGPT chat in an export and, with newer messages, in a later live capture;
+    and two folders that each hold a different note under the same name."""
+    out.mkdir(parents=True, exist_ok=True)
+    export = [{"id": "c7", "title": "Thesis plan", "create_time": 1735732800.0, "mapping": {
+        "a": {"message": {"author": {"role": "user"}, "create_time": 1735732801.0,
+                          "content": {"parts": ["outline my thesis on minimum wages and employment"]}}},
+        "b": {"message": {"author": {"role": "assistant"}, "create_time": 1735732802.0,
+                          "content": {"parts": ["ASSISTANTWORD an outline"]}}},
+        "c": {"message": {"author": {"role": "user"}, "create_time": 1735732900.0,
+                          "content": {"parts": ["add a chapter on data sources for the thesis"]}}}}}]
+    (out / "conversations.json").write_text(json.dumps(export), encoding="utf-8")
+    capture = {"format": "brainplug-capture", "version": 1, "items": [
+        {"site": "chatgpt", "conv": "c7", "title": "Thesis plan", "ts": 1735732900500,
+         "text": "add a chapter on  data sources for the thesis"},
+        {"site": "chatgpt", "conv": "c7", "title": "Thesis plan", "ts": 1736000000000,
+         "text": "now write the abstract of the thesis"}]}
+    (out / "brainplug-capture.json").write_text(json.dumps(capture), encoding="utf-8")
+    for name, text in (("A", "notes about the bakery business plan and its costs"),
+                       ("B", "notes about marathon training blocks and long runs")):
+        (out / name).mkdir(exist_ok=True)
+        (out / name / "2025-03-05.md").write_text(f"{text}\n", encoding="utf-8")

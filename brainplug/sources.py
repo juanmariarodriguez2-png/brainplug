@@ -28,7 +28,7 @@ import re
 import tempfile
 import zipfile
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from email import policy
 from email.utils import getaddresses, parsedate_to_datetime
@@ -56,6 +56,7 @@ class Item:
     links: list[str] = field(default_factory=list)  # titles this item links to
     tags: list[str] = field(default_factory=list)
     dated: bool = True  # False when the source carries no real date
+    msgs: list[str] = field(default_factory=list)  # chats: each message you wrote, in step with parts
 
     @property
     def words(self) -> int:
@@ -167,7 +168,7 @@ def parse_chatgpt(data: list[dict]) -> list[Item]:
             title=(conv.get("title") or "Untitled").strip() or "Untitled",
             created=created, source="chatgpt", kind="chat",
             text="\n".join(t for _, t in mine),
-            parts=[t or created for t, _ in mine], size=total,
+            parts=[t or created for t, _ in mine], size=total, msgs=[t for _, t in mine],
         ))
     return items
 
@@ -199,7 +200,7 @@ def parse_claude(data: list[dict]) -> list[Item]:
             title=(conv.get("name") or "").strip() or "Untitled",
             created=created, source="claude", kind="chat",
             text="\n".join(t for _, t in mine),
-            parts=[t or created for t, _ in mine], size=total,
+            parts=[t or created for t, _ in mine], size=total, msgs=[t for _, t in mine],
         ))
     return items
 
@@ -493,7 +494,7 @@ def _gemini_items(prompts: list[tuple[datetime, str, str]]) -> list[Item]:
             id=f"gemini:{key[0]}" if len(key) == 1 else f"gemini:{turns[0][0]:%Y%m%dT%H%M%S}",
             title=title[:70] + ("…" if len(title) > 70 else ""), created=turns[0][0],
             source="gemini", kind="chat", text="\n".join(t for _, t in turns),
-            parts=[w for w, _ in turns], size=2 * len(turns),
+            parts=[w for w, _ in turns], size=2 * len(turns), msgs=[t for _, t in turns],
         ))
     return items
 
@@ -562,6 +563,7 @@ def parse_capture(data: dict) -> list[Item]:
         items.append(Item(
             id=f"{site}:{conv}", title=title.strip(), created=turns[0][0], source=site, kind="chat",
             text="\n".join(t for _, t, _ in turns), parts=[w for w, _, _ in turns], size=2 * len(turns),
+            msgs=[t for _, t, _ in turns],
         ))
     return items
 
@@ -875,6 +877,42 @@ def load(paths: Iterable[str | Path], me: Iterable[str] | None = None, pdf: bool
     items: dict[str, Item] = {}
     for item in found:
         old = items.get(item.id)
-        if old is None or item.words > old.words:  # the same chat from an export and from live capture
+        if old is None:
             items[item.id] = item
+        elif old.text == item.text:
+            continue  # the same thing reached twice, e.g. a folder given twice
+        elif old.msgs and item.msgs:
+            items[item.id] = merge_chats(old, item)  # an export and a later live capture of one chat
+        elif item.kind == "note":
+            n = 2  # a different note at the same place in another folder: keep both
+            while f"{item.id}#{n}" in items:
+                n += 1
+            item.id = f"{item.id}#{n}"
+            items[item.id] = item
+        elif item.words > old.words:
+            items[item.id] = item  # an older and a newer export of the same thread
     return sorted(items.values(), key=lambda i: i.created)
+
+
+def _same(text: str) -> str:
+    return " ".join(text.split())
+
+
+def merge_chats(a: Item, b: Item) -> Item:
+    """One conversation found in two places (an export and the extension's capture made
+    after it): keep every message once. A message both have is counted once per copy."""
+    base, other = (a, b) if len(a.msgs) >= len(b.msgs) else (b, a)
+    unmatched = Counter(_same(m) for m in base.msgs)
+    extra = []
+    for when, text in zip(other.parts, other.msgs):
+        key = _same(text)
+        if unmatched[key]:
+            unmatched[key] -= 1
+        else:
+            extra.append((when, text))
+    if not extra:
+        return base
+    rows = sorted([*zip(base.parts, base.msgs), *extra], key=lambda r: r[0])
+    return replace(base, title=base.title if base.title not in ("", "Untitled") else other.title,
+                   created=min(base.created, other.created), text="\n".join(t for _, t in rows),
+                   parts=[w for w, _ in rows], msgs=[t for _, t in rows], size=base.size + 2 * len(extra))

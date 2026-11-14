@@ -8,6 +8,7 @@ import pytest
 
 from brainplug import notion_api, sources
 from helpers import tiny_docx, tiny_pdf
+from make_inputs import write_overlap
 
 GEMINI = [
     {"header": "Gemini Apps", "title": "Prompted how do I interpret a p-value in a regression?",
@@ -77,6 +78,24 @@ def test_capture_file_and_duplicates(tmp_path):
     assert [i.id for i in items] == ["chatgpt:c1", "claude:u9"]
     assert len(items[0].parts) == 2  # the fuller copy of the same chat wins
     assert items[1].title.startswith("draft a cover letter")
+
+
+def test_export_and_later_capture_keep_every_message(tmp_path):
+    # The export knows the first message, the capture the newest one: neither may be lost.
+    write_overlap(tmp_path)
+    [chat] = sources.load([tmp_path / "conversations.json", tmp_path / "brainplug-capture.json"])
+    assert [" ".join(m.split()) for m in chat.text.split("\n")] == [
+        "outline my thesis on minimum wages and employment", "add a chapter on data sources for the thesis",
+        "now write the abstract of the thesis"]
+    assert len(chat.parts) == 3 and chat.title == "Thesis plan" and "ASSISTANTWORD" not in chat.text
+    assert chat.created.timestamp() == 1735732800.0
+
+
+def test_same_name_in_two_folders_keeps_both_notes(tmp_path):
+    write_overlap(tmp_path)
+    items = sources.load([tmp_path / "A", tmp_path / "B", tmp_path / "A"])  # A twice: still one copy of it
+    assert sorted("bakery" in i.text for i in items) == [False, True]
+    assert len({i.id for i in items}) == 2
 
 
 def test_whatsapp_keeps_only_my_messages(tmp_path):

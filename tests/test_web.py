@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_web  # noqa: E402
-from make_inputs import write_inputs  # noqa: E402
+from make_inputs import write_inputs, write_overlap  # noqa: E402
 
 NODE = shutil.which("node")
 ENV = {**os.environ, "TZ": "Europe/Madrid", "PYTHONPATH": str(ROOT)}
@@ -95,3 +95,16 @@ def test_javascript_private_mode_leaves_your_text_out(tmp_path):
     data = html[start:html.index("</script>", start)]
     for title in ("Read CSV in pandas", "Weekly meal plan", "Interview answers"):  # titles from the demo data
         assert title not in data
+
+
+@pytest.mark.skipif(not NODE, reason="needs Node.js")
+def test_javascript_merges_and_keeps_like_python(tmp_path):
+    folder = tmp_path / "inputs"
+    write_overlap(folder)
+    from brainplug import sources
+    py = sources.load([folder / "brainplug-capture.json", folder / "conversations.json", folder / "A", folder / "B"])
+    subprocess.run([NODE, str(ROOT / "tests" / "js" / "run_engine.mjs"), str(folder), str(tmp_path / "js.json"),
+                    "--topics", "2"], check=True, env=ENV, capture_output=True)
+    js = json.loads((tmp_path / "js.json").read_text(encoding="utf-8"))
+    assert len(py) == 3 and js["numbers"]["items"] == 3
+    assert js["numbers"]["words"] == sum(i.words for i in py)

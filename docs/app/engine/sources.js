@@ -88,7 +88,8 @@ export function parseChatgpt(data) {
     if (created === null || !mine.length) return;
     mine.sort((a, b) => (a[0] ?? created) - (b[0] ?? created));
     items.push(item(`chatgpt:${conv.id || conv.conversation_id || i}`, (conv.title || 'Untitled').trim() || 'Untitled',
-      created, 'chatgpt', 'chat', mine.map(m => m[1]).join('\n'), { parts: mine.map(m => m[0] ?? created), size: total }));
+      created, 'chatgpt', 'chat', mine.map(m => m[1]).join('\n'),
+      { parts: mine.map(m => m[0] ?? created), size: total, msgs: mine.map(m => m[1]) }));
   });
   return items;
 }
@@ -110,7 +111,7 @@ export function parseClaude(data) {
     const created = parseDate(conv.created_at) ?? (first ? first[0] : null);
     if (created === null || !mine.length) return;
     items.push(item(`claude:${conv.uuid || i}`, (conv.name || '').trim() || 'Untitled', created, 'claude', 'chat',
-      mine.map(m => m[1]).join('\n'), { parts: mine.map(m => m[0] ?? created), size: total }));
+      mine.map(m => m[1]).join('\n'), { parts: mine.map(m => m[0] ?? created), size: total, msgs: mine.map(m => m[1]) }));
   });
   return items;
 }
@@ -143,7 +144,7 @@ function geminiItems(prompts) {
     const title = squash(turns[0][1]);
     return item(key.startsWith('c:') ? `gemini:${key.slice(2)}` : `gemini:${stamp(turns[0][0])}`,
       title.slice(0, 70) + (title.length > 70 ? '…' : ''), turns[0][0], 'gemini', 'chat',
-      turns.map(t => t[1]).join('\n'), { parts: turns.map(t => t[0]), size: 2 * turns.length });
+      turns.map(t => t[1]).join('\n'), { parts: turns.map(t => t[0]), size: 2 * turns.length, msgs: turns.map(t => t[1]) });
   });
 }
 
@@ -203,7 +204,7 @@ export function parseCapture(data) {
     const named = [...turns].reverse().find(t => t[2].trim());
     const title = named ? named[2] : squash(turns[0][1]).slice(0, 70);
     return item(`${site}:${conv}`, title.trim(), turns[0][0], site, 'chat', turns.map(t => t[1]).join('\n'),
-      { parts: turns.map(t => t[0]), size: 2 * turns.length });
+      { parts: turns.map(t => t[0]), size: 2 * turns.length, msgs: turns.map(t => t[1]) });
   });
 }
 
@@ -705,9 +706,39 @@ export async function load(inputs, options = {}) {
   const items = new Map();
   for (const it of found) {
     const old = items.get(it.id);
-    if (!old || it.words > old.words) items.set(it.id, it);  // the same chat from an export and from live capture
+    if (!old) items.set(it.id, it);
+    else if (old.text === it.text) continue;  // the same thing reached twice, e.g. a folder given twice
+    else if (old.msgs && old.msgs.length && it.msgs && it.msgs.length) items.set(it.id, mergeChats(old, it));  // an export and a later live capture
+    else if (it.kind === 'note') {  // a different note at the same place in another folder: keep both
+      let n = 2;
+      while (items.has(`${it.id}#${n}`)) n++;
+      it.id = `${it.id}#${n}`;
+      items.set(it.id, it);
+    } else if (it.words > old.words) items.set(it.id, it);  // an older and a newer export of the same thread
   }
   return { items: [...items.values()].sort((a, b) => a.created - b.created), notes };
+}
+
+const same = text => text.split(/\s+/).filter(Boolean).join(' ');
+
+// One conversation found in two places (an export and the extension's capture made after it):
+// keep every message once. A message both have is counted once per copy.
+export function mergeChats(a, b) {
+  const [base, other] = a.msgs.length >= b.msgs.length ? [a, b] : [b, a];
+  const unmatched = new Map();
+  for (const m of base.msgs) unmatched.set(same(m), (unmatched.get(same(m)) || 0) + 1);
+  const extra = [];
+  other.msgs.forEach((text, i) => {
+    const left = unmatched.get(same(text)) || 0;
+    if (left) unmatched.set(same(text), left - 1);
+    else extra.push([other.parts[i], text]);
+  });
+  if (!extra.length) return base;
+  const rows = [...base.parts.map((w, i) => [w, base.msgs[i]]), ...extra].sort((x, y) => x[0] - y[0]);
+  const text = rows.map(r => r[1]).join('\n');
+  return { ...base, title: base.title && base.title !== 'Untitled' ? base.title : other.title,
+    created: Math.min(base.created, other.created), text, words: countWords(text),
+    parts: rows.map(r => r[0]), msgs: rows.map(r => r[1]), size: base.size + 2 * extra.length };
 }
 
 export { blobFile, bytesFile };
