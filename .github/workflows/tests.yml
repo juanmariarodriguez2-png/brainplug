@@ -28,6 +28,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Use the tests' time zone on Windows
+        # tests set TZ=Europe/Madrid; Node honours it, but Python on Windows reads the system zone,
+        # so phone times (WhatsApp) and ZIP file times would be read in different zones
+        if: runner.os == 'Windows'
+        run: tzutil /s "Romance Standard Time"
       - run: pip install -e ".[dev]"
       # Python package, plus the check that the browser engine (docs/app/engine) gives the same numbers
       - run: python -m pytest -q
