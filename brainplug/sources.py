@@ -412,7 +412,8 @@ def _html_to_text(markup: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", " ", markup))
 
 
-def load_gmail(path: Path, me: Iterable[str] | None = None) -> list[Item]:
+def load_gmail(path: Path, me: Iterable[str] | None = None,
+               notes: list[str] | None = None) -> list[Item]:
     """Read the mail *you sent* from a Takeout mbox, grouped by thread."""
     mine = {a.lower() for a in (me or [])}
     if not mine:
@@ -425,7 +426,19 @@ def load_gmail(path: Path, me: Iterable[str] | None = None) -> list[Item]:
                 seen.update(_addresses(msg, "From") + _addresses(msg, "Delivered-To"))
         if not seen:
             return []
-        mine = {seen.most_common(1)[0][0]}
+        ranked = seen.most_common(2)
+        address, count = ranked[0]
+        mine = {address}
+        reasons = []
+        if count * 2 < sum(seen.values()):
+            reasons.append("the address appears in fewer than half of the counted addresses")
+        # A runner-up within 20% of the leader is too close to trust silently.
+        if len(ranked) > 1 and ranked[1][1] * 5 >= count * 4:
+            reasons.append("two addresses have similar counts")
+        unsure = f"; unsure: {'; '.join(reasons)}" if reasons else ""
+        remark = f"Gmail: kept the mail sent from {address} (detected{unsure}; to change it, give your address in “Who you are” or with --me)."
+        if notes is not None and remark not in notes:
+            notes.append(remark)
 
     def sent_by_me(raw: bytes) -> bool:
         msg = _headers(raw)
@@ -1021,7 +1034,7 @@ class _Loader:
             low = rel.as_posix().lower()
             return parse_gemini_html(_read_all(path)) if (not inside or ("gemini" in low and "activ" in low)) else []
         if suffix == ".mbox":
-            return load_gmail(path, self.emails)
+            return load_gmail(path, self.emails, self.notes)
         if suffix == ".jsonl":
             session = parse_session(path)
             return [session] if session else []
@@ -1060,9 +1073,15 @@ class _Loader:
         if not me:
             senders = sorted({s for c in self.chats for _, s, _ in c.rows})[:6]
             self.notes.append(
-                "WhatsApp: could not tell which sender is you, so those chats were skipped. "
-                f"Pass your name as it appears in the chat (seen: {', '.join(senders)}).")
+                "WhatsApp: unsure: could not tell which sender is you, so those chats were skipped. "
+                f'Give your name as it appears in the chat in “Who you are” or with --me (seen: {", ".join(senders)}).')
             return []
+        if not self.names:
+            sender = next((s for c in self.chats for _, s, _ in c.rows if s.lower() in me), sorted(me)[0])
+            evidence = f"{len(self.chats)} chats" if len(self.chats) != 1 else "the file name"
+            self.notes.append(
+                f"WhatsApp: kept the messages written by {sender} (detected from {evidence}; "
+                'to change it, give your name in “Who you are” or with --me).')
         return whatsapp_items(self.chats, me)
 
 

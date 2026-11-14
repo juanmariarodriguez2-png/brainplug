@@ -126,7 +126,10 @@ def test_whatsapp_keeps_only_my_messages(tmp_path):
     (tmp_path / "WhatsApp Chat with Marta.txt").write_text(WHATSAPP_IOS, encoding="utf-8")
     notes: list[str] = []
     items = sources.load([tmp_path], notes=notes)
-    assert len(items) == 1 and not notes  # 13 March has too little text to count
+    assert len(items) == 1  # 13 March has too little text to count
+    assert notes == [
+        "WhatsApp: kept the messages written by Juan (detected from the file name; "
+        'to change it, give your name in “Who you are” or with --me).']
     item = items[0]
     assert (item.source, item.kind, item.title, item.size) == ("whatsapp", "message", "Marta", 3)
     assert "instrumental variables chapter\nbefore the exam" in item.text
@@ -136,7 +139,11 @@ def test_whatsapp_keeps_only_my_messages(tmp_path):
     # two chats: you are the person who is in both; 12-hour clock, day first
     with zipfile.ZipFile(tmp_path / "WhatsApp Chat - Dani.zip", "w") as zf:
         zf.writestr("_chat.txt", WHATSAPP_ANDROID)
-    items = sources.load([tmp_path])
+    notes.clear()
+    items = sources.load([tmp_path], notes=notes)
+    assert notes == [
+        "WhatsApp: kept the messages written by Juan (detected from 2 chats; "
+        'to change it, give your name in “Who you are” or with --me).']
     gym = next(i for i in items if "sentadillas" in i.text)
     assert gym.title == "Dani" and (gym.created.day, gym.created.month, gym.created.hour) == (3, 4, 21)
     assert "THEIR WORDS" not in gym.text and "omitido" not in gym.text
@@ -146,8 +153,21 @@ def test_whatsapp_needs_to_know_who_you_are(tmp_path):
     (tmp_path / "_chat.txt").write_text(WHATSAPP_IOS, encoding="utf-8")
     notes: list[str] = []
     assert sources.load([tmp_path], notes=notes) == [] and "Juan" in notes[0] and "Marta" in notes[0]
-    [item] = sources.load([tmp_path], me=["juan"])
+    assert len(notes) == 1 and "unsure:" in notes[0] and '“Who you are” or with --me' in notes[0]
+    notes.clear()
+    [item] = sources.load([tmp_path], me=["juan"], notes=notes)
+    assert notes == []
     assert "THEIR WORDS" not in item.text
+
+
+def test_whatsapp_detects_identity_across_unnamed_chats(tmp_path):
+    for n, other in enumerate(["Marta", "Ana", "Dani"]):
+        (tmp_path / f"chat{n}.txt").write_text(WHATSAPP_IOS.replace("Marta", other), encoding="utf-8")
+    notes = []
+    assert len(sources.load([tmp_path], notes=notes)) == 3
+    assert notes == [
+        "WhatsApp: kept the messages written by Juan (detected from 3 chats; "
+        'to change it, give your name in “Who you are” or with --me).']
 
 
 def test_word_and_pdf(tmp_path):

@@ -55,7 +55,12 @@ def test_javascript_engine_matches_python(tmp_path):
                    check=True, env=ENV, capture_output=True)
     done = subprocess.run([NODE, str(ROOT / "tests" / "js" / "run_engine.mjs"), str(folder), str(tmp_path / "js.json"),
                            "--topics", "9", "--html"], check=True, env=ENV, capture_output=True, text=True)
-    assert json.loads(done.stdout)["notes"] == []
+    # These fixtures omit --me: Gmail and WhatsApp both have confident detections.
+    assert json.loads(done.stdout)["notes"] == [
+        "Gmail: kept the mail sent from me@example.com (detected; to change it, give your address in “Who you are” or with --me).",
+        "WhatsApp: kept the messages written by Juan (detected from 6 chats; "
+        'to change it, give your name in “Who you are” or with --me).',
+    ]
     py = json.loads((tmp_path / "py.json").read_text(encoding="utf-8"))
     js = json.loads((tmp_path / "js.json").read_text(encoding="utf-8"))
 
@@ -149,6 +154,48 @@ def test_javascript_reads_sessions_like_python(tmp_path):
     assert sorted(i.source for i in py) == ["claudecode", "codex", "notes"]
     assert js["numbers"]["items"] == 3 and js["numbers"]["words"] == sum(i.words for i in py)
     assert {s["id"] for s in js["numbers"]["sources"]} == {"claudecode", "codex", "notes"}
+
+
+@pytest.mark.skipif(not NODE, reason="needs Node.js")
+@pytest.mark.parametrize("case", [
+    "gmail_confident", "gmail_plurality", "gmail_close", "gmail_tie", "gmail_given", "gmail_empty",
+    "whatsapp_named", "whatsapp_unnamed", "whatsapp_multiple", "whatsapp_given",
+])
+def test_javascript_identity_notes_match_python(tmp_path, case):
+    from brainplug import sources
+    from test_brainplug import identity_mbox
+    from test_new_sources import WHATSAPP_IOS
+
+    me = []
+    if case.startswith("gmail"):
+        counts = {
+            "gmail_confident": {"ana@example.com": 4, "bob@example.com": 1},
+            "gmail_plurality": {"ana@example.com": 4, "bob@example.com": 3, "cat@example.com": 3},
+            "gmail_close": {"ana@example.com": 5, "bob@example.com": 4},
+            "gmail_tie": {"ana@example.com": 2, "bob@example.com": 2},
+            "gmail_given": {"ana@example.com": 4, "bob@example.com": 1},
+            "gmail_empty": {},
+        }[case]
+        (tmp_path / "mail.mbox").write_text(identity_mbox(counts), encoding="utf-8")
+        if case == "gmail_given":
+            me = ["BOB@example.com"]
+    elif case == "whatsapp_multiple":
+        for n, other in enumerate(["Marta", "Ana", "Dani"]):
+            (tmp_path / f"chat{n}.txt").write_text(WHATSAPP_IOS.replace("Marta", other), encoding="utf-8")
+    else:
+        name = "WhatsApp Chat with Marta.txt" if case == "whatsapp_named" else "_chat.txt"
+        (tmp_path / name).write_text(WHATSAPP_IOS, encoding="utf-8")
+        if case == "whatsapp_given":
+            me = ["JUAN"]
+    inputs = sorted(tmp_path.iterdir())
+    notes = []
+    py = sources.load(inputs, me=me, notes=notes)
+    done = subprocess.run([NODE, str(ROOT / "tests/js/identity.mjs"), json.dumps(me), *map(str, inputs)],
+                          check=True, env=ENV, capture_output=True, text=True, timeout=30)
+    js = json.loads(done.stdout)
+    assert js["notes"] == notes
+    assert js["count"] == len(py)
+    assert sorted(js["text"].splitlines()) == sorted(line for i in py for line in i.text.splitlines())
 
 
 @pytest.mark.skipif(not NODE, reason="needs Node.js")

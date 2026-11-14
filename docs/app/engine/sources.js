@@ -547,7 +547,7 @@ function bodyText(headers, body, depth = 0) {
 }
 
 /** Read the mail you sent from a Takeout mbox, grouped by thread. */
-export async function loadGmail(file, me = []) {
+export async function loadGmail(file, me = [], note = () => {}) {
   let mine = new Set(me.map(a => a.toLowerCase()));
   if (!mine.size) {
     // Your own address is the one mail is delivered to (or, in a Sent-only mailbox, the one everything comes from).
@@ -557,7 +557,15 @@ export async function loadGmail(file, me = []) {
       for (const a of [...addresses(h.get('from')), ...addresses(h.get('delivered-to'))]) seen.set(a, (seen.get(a) || 0) + 1);
     }
     if (!seen.size) return [];
-    mine = new Set([[...seen].reduce((best, cur) => (cur[1] > best[1] ? cur : best))[0]]);
+    const ranked = [...seen].sort((a, b) => b[1] - a[1]);
+    const [address, count] = ranked[0];
+    mine = new Set([address]);
+    const reasons = [];
+    if (count * 2 < [...seen.values()].reduce((a, b) => a + b, 0)) reasons.push('the address appears in fewer than half of the counted addresses');
+    // A runner-up within 20% of the leader is too close to trust silently.
+    if (ranked.length > 1 && ranked[1][1] * 5 >= count * 4) reasons.push('two addresses have similar counts');
+    const unsure = reasons.length ? `; unsure: ${reasons.join('; ')}` : '';
+    note(`Gmail: kept the mail sent from ${address} (detected${unsure}; to change it, give your address in “Who you are” or with --me).`);
   }
   const threads = new Map();
   for await (const raw of mboxMessages(file)) {
@@ -707,7 +715,7 @@ async function loadFile(file, rel, ctx, { noteSource = 'notes', inside = false, 
     try { return parseJson(JSON.parse(await file.text())); } catch (err) { if (inside) return []; throw err instanceof SyntaxError ? new Error(`${baseName(file.path)} is not valid JSON.`) : err; }
   }
   if (ext === '.html') return !inside || wantedHtml(rel) ? parseGeminiHtml(await file.text()) : [];
-  if (ext === '.mbox') return loadGmail(file, ctx.emails);
+  if (ext === '.mbox') return loadGmail(file, ctx.emails, ctx.note);
   if (ext === '.jsonl') {  // a Claude Code or Codex session
     const session = parseSession(await file.text(60000000), stem(file.path));
     return session ? [session] : [];
@@ -808,10 +816,17 @@ export async function load(inputs, options = {}) {
   for (const [top, files] of folders) found.push(...await loadFolder(files, ctx, top));
   if (ctx.chats.length) {
     const who = whatsappMe(ctx.chats, ctx.names);
-    if (who.size) found.push(...whatsappItems(ctx.chats, who));
-    else {
+    if (who.size) {
+      if (!ctx.names.size) {
+        const row = ctx.chats.flatMap(c => c.rows).find(r => who.has(r[1].toLowerCase()));
+        const sender = row ? row[1] : [...who].sort()[0];
+        const evidence = ctx.chats.length === 1 ? 'the file name' : `${ctx.chats.length} chats`;
+        ctx.note(`WhatsApp: kept the messages written by ${sender} (detected from ${evidence}; to change it, give your name in “Who you are” or with --me).`);
+      }
+      found.push(...whatsappItems(ctx.chats, who));
+    } else {
       const senders = [...new Set(ctx.chats.flatMap(c => c.rows.map(r => r[1])))].sort().slice(0, 6);
-      ctx.note(`WhatsApp: could not tell which sender is you, so those chats were skipped. Type your name as it appears in the chat (seen: ${senders.join(', ')}).`);
+      ctx.note(`WhatsApp: unsure: could not tell which sender is you, so those chats were skipped. Give your name as it appears in the chat in “Who you are” or with --me (seen: ${senders.join(', ')}).`);
     }
   }
   const items = new Map();
