@@ -31,6 +31,10 @@
     background: #0d0d10; padding: 3px 8px; border-radius: 6px; }
   .copy:hover { color: var(--ink); }
   .rows .what pre { margin: 10px 0 0; }
+  pre.has-copy { padding-top: 38px; }  /* the copy button never covers the code, also on phones */
+  .saying { margin: 46px 0 0; font-weight: 600; font-size: clamp(20px, 2.2vw, 26px); letter-spacing: -0.02em; color: var(--ink); }
+  .said { margin-top: 14px; }
+  .said .name { font-style: italic; }
   @media (max-width: 720px) { .views { grid-template-columns: 1fr; gap: 32px; } .top a.opt { display: none; } }
   /* The launch look: bigger statements, a full-width live demo, the three tools as words, one closing line. */
   .hero { padding-top: clamp(40px, 8vw, 120px); }
@@ -70,7 +74,7 @@
       <p class="lead" data-i="heroLead"></p>
       <div class="actions">
         <a class="btn" href="app/" id="make" data-i="make"></a>
-        <a class="btn ghost" href="https://github.com/juanmariarodriguez2-png/brainplug" data-i="code"></a>
+        <a class="btn ghost" href="#memory" id="mem" data-i="mem"></a>
       </div>
       <figure class="stage">
         <iframe src="demo.html" title="Brainplug demo" loading="lazy"></iframe>
@@ -86,18 +90,20 @@
         <li><span class="name tool"><span>recall</span></span><span class="what" data-i="agRecall"></span></li>
         <li><span class="name tool"><span>remember</span></span><span class="what" data-i="agRemember"></span></li>
       </ul>
-      <pre class="after"><code>pip install "brainplug[agent] @ git+https://github.com/juanmariarodriguez2-png/brainplug.git"
+      <pre class="after"><code>uv tool install "brainplug[agent]"
 brainplug brain ~/Vault
-brainplug mcp --brain ~/Vault chatgpt.zip Sent.mbox</code></pre>
-      <p class="note" data-i="agCfg"></p>
-      <pre><code>{
-  "mcpServers": {
-    "brainplug": {
-      "command": "brainplug",
-      "args": ["mcp", "--brain", "/path/to/Vault", "/path/to/chatgpt.zip"]
-    }
-  }
-}</code></pre>
+brainplug connect ~/Vault
+brainplug doctor ~/Vault</code></pre>
+      <p class="note" data-i="agCfg" style="max-width:660px"></p>
+      <p class="saying" data-i="sayT"></p>
+      <ul class="rows said">
+        <li><span class="name" data-i="s1"></span><span class="what" data-i="s1w"></span></li>
+        <li><span class="name" data-i="s2"></span><span class="what" data-i="s2w"></span></li>
+        <li><span class="name" data-i="s3"></span><span class="what" data-i="s3w"></span></li>
+        <li><span class="name" data-i="s4"></span><span class="what" data-i="s4w"></span></li>
+        <li><span class="name" data-i="s5"></span><span class="what" data-i="s5w"></span></li>
+        <li><span class="name" data-i="s6"></span><span class="what" data-i="s6w"></span></li>
+      </ul>
       <p class="note" data-i="agNote" style="max-width:660px"></p>
     </section>
 
@@ -114,6 +120,7 @@ brainplug mcp --brain ~/Vault chatgpt.zip Sent.mbox</code></pre>
         <li><span class="name" data-i="rDocsT"></span><span class="what" data-i="rDocs"></span></li>
         <li><span class="name" data-i="rFolderT"></span><span class="what" data-i="rFolder"></span></li>
         <li><span class="name" data-i="rLiveT"></span><span class="what" data-i="rLive"></span></li>
+        <li><span class="name">Claude Code, Codex</span><span class="what" data-i="rSessions"></span></li>
       </ul>
       <p class="own" data-i="own"></p>
     </section>
@@ -137,9 +144,7 @@ brainplug mcp --brain ~/Vault chatgpt.zip Sent.mbox</code></pre>
       <ul class="rows after">
         <li><span class="name" data-i="uWebT"></span><span class="what" data-i="uWeb"></span></li>
         <li><span class="name" data-i="uPyT"></span><span class="what"><span data-i="uPy"></span>
-<pre><code>git clone https://github.com/juanmariarodriguez2-png/brainplug
-cd brainplug
-pip install .
+<pre><code>uv tool install brainplug
 brainplug app</code></pre></span></li>
         <li><span class="name" data-i="uCliT"></span><span class="what"><span data-i="uCli"></span>
 <pre><code>brainplug build chatgpt.zip ~/Vault Sent.mbox --me you@gmail.com -o my_brain.html</code></pre></span></li>
@@ -180,6 +185,7 @@ brainplug sync --watch</code></pre></span></li>
   <footer class="end">
     <span data-i="foot1"></span>
     <a href="https://github.com/juanmariarodriguez2-png/brainplug">GitHub</a>
+    <a href="privacy.html" data-i="privacy"></a>
     <span data-i="foot2"></span>
   </footer>
 </div>
@@ -189,10 +195,10 @@ const TXT = {
   en: {
     lang: '<b>EN</b> / ES', navMemory: 'Memory for your AI', navReads: 'What it reads', navHow: 'How it works', copy: 'Copy', copied: 'Copied',
     title: 'Brainplug — plug your brain into any AI',
-    heroSay: 'Plug your brain into any AI.',
+    heroSay: 'Plug your brain into your AI.',
     heroSub: 'Everything you write has a shape.', closeSay: 'Plug your brain in.',
-    heroLead: 'Brainplug turns your AI chats, your notes, your mail and your messages into a 3D brain you can walk through, and into a memory your AI assistants plug into so they never start from zero. It all stays on your computer.',
-    make: 'Make mine', code: 'Read the code',
+    heroLead: 'Brainplug turns your AI chats, your notes, your mail and your messages into a 3D brain you can walk through, and into a memory that Claude, Cursor, Codex and other assistants plug into, so they never start from zero. It all stays on your computer.',
+    make: 'See my brain', mem: 'Give my AI a memory', code: 'Read the code',
     demoCap: 'A live example with invented data. Drag to turn it, click a dot to open it, press Galaxy, or press play to watch 18 months grow.',
     readsSay: 'It reads what you already have, the way each app hands it over.',
     rChatgpt: 'The export .zip. Your side of every conversation.',
@@ -222,12 +228,13 @@ const TXT = {
     uLiveT: 'Always up to date', uLive: 'Save your sources once; after that it rebuilds whenever a note changes or the extension saves new messages.',
     uBackT: 'Back into your notes', uBack: 'Write your topics and chats into Obsidian as linked notes. Notes you already have are linked, never copied.',
     agSay: 'Plug your AI into it and stop explaining who you are.',
-    agLead: 'Every new chat starts blank, so you paste the same background again and again. Brainplug is a second brain your assistants share: a small server on your computer that Claude Desktop, Claude Code, Cursor and other MCP clients connect to. What one assistant learns today, the next one already knows.',
+    agLead: 'Every new chat starts blank, so you paste the same background again and again. Brainplug is a second brain your assistants share: a small server on your computer that Claude Desktop, Claude Code, Codex, Cursor and other MCP clients connect to. What one assistant learns today, the next one already knows.',
     agContext: 'A short briefing at the start of a conversation: your “About me” note, what you asked assistants to keep in mind, what you are writing about lately. A few hundred words instead of a pasted prompt.',
     agRecall: 'The assistant looks up only what it needs, across your notes, past chats, mail and memories, and gets excerpts rather than whole files.',
     agRemember: 'A decision, a preference, a fact about a project: saved as a Markdown note in <code>Brainplug/Memory</code> inside your Obsidian vault, where you can read it, edit it or delete it.',
-    agCfg: 'In Claude Desktop, add it under Settings › Developer › Edit config:',
-    agNote: 'Your “About me” note is yours: assistants read it and never change it. Forgetting a memory archives the note; it does not delete it. What an assistant reads is sent to the AI model it runs on, like anything else you show it. For an assistant that cannot run a local server, <code>brainplug brain ~/Vault --context</code> prints the briefing to paste.',
+    agCfg: '<code>connect</code> finds the assistants on your computer (Claude Desktop, Claude Code, Codex, Cursor, Windsurf, Gemini CLI, VS Code) and adds Brainplug to each one, keeping a backup; <code>doctor</code> checks that it answers. Until the first release is on PyPI, install it from GitHub: <code>uv tool install "brainplug[agent] @ git+https://github.com/juanmariarodriguez2-png/brainplug"</code>.',
+    agNote: 'Your “About me” note is yours: assistants read it and never change it. A preference an assistant saves for every future chat waits for your yes, so a web page that tricks one assistant cannot instruct all of them. Forgetting a memory archives the note; it does not delete it. What an assistant reads is sent to the AI model it runs on, like anything else you show it. For an assistant that cannot run a local server, <code>brainplug brain ~/Vault --context</code> prints the briefing to paste.',
+    sayT: 'What you can say to it', s1: '“What do you know about me?”', s1w: 'Your “About me” note, your standing preferences and what you write about lately.', s2: '“When did I first write about kelp forests?”', s2w: 'The earliest things you wrote about it, oldest first, with their dates.', s3: '“What was I working on last spring?”', s3w: 'Those months, topic by topic.', s4: '“Remember that I prefer short answers.”', s4w: 'A note in your vault. As a standing preference, it waits for your yes.', s5: '“That chat isn’t mine.”', s5w: 'It leaves your brain; the export it came from is left as it is.', s6: '“Give my topics better names.”', s6w: 'It suggests names from each topic’s words and saves the ones you accept.', rSessions: 'What you typed to these coding agents on your computer, never their replies or tool output; keys you pasted are masked. Add <code>--sessions</code>.', privacy: 'Privacy',
     prSay: 'Your words do not leave your computer.',
     p1T: 'Nothing is uploaded', p1: 'No account, no server, no tracking. Once the web app has loaded you can switch off your wifi and it still builds your brain. The result is a single file that opens offline.',
     p2T: 'Private mode', p2: 'One switch leaves every title and every word out of the result, so you can share the map without sharing what is in it.',
@@ -243,10 +250,10 @@ const TXT = {
   es: {
     lang: 'EN / <b>ES</b>', navMemory: 'Memoria para tu IA', navReads: 'Qué lee', navHow: 'Cómo funciona', copy: 'Copiar', copied: 'Copiado',
     title: 'Brainplug — enchufa tu cerebro a cualquier IA',
-    heroSay: 'Enchufa tu cerebro a cualquier IA.',
+    heroSay: 'Enchufa tu cerebro a tu IA.',
     heroSub: 'Todo lo que escribes tiene una forma.', closeSay: 'Enchufa tu cerebro.',
-    heroLead: 'Brainplug convierte tus chats con IA, tus notas, tus correos y tus mensajes en un cerebro 3D que puedes recorrer, y en una memoria a la que se conectan tus asistentes de IA para no empezar nunca de cero. Todo se queda en tu ordenador.',
-    make: 'Crear el mío', code: 'Leer el código',
+    heroLead: 'Brainplug convierte tus chats con IA, tus notas, tus correos y tus mensajes en un cerebro 3D que puedes recorrer, y en una memoria a la que se conectan Claude, Cursor, Codex y otros asistentes para no empezar nunca de cero. Todo se queda en tu ordenador.',
+    make: 'Ver mi cerebro', mem: 'Dar memoria a mi IA', code: 'Leer el código',
     demoCap: 'Un ejemplo en vivo con datos inventados. Arrastra para girarlo, pulsa un punto para abrirlo, prueba Galaxia o dale a reproducir para ver crecer 18 meses.',
     readsSay: 'Lee lo que ya tienes, tal como te lo da cada app.',
     rChatgpt: 'El .zip de exportación. Tu parte de cada conversación.',
@@ -276,12 +283,13 @@ const TXT = {
     uLiveT: 'Siempre al día', uLive: 'Guarda tus fuentes una vez; a partir de ahí se rehace cada vez que cambia una nota o la extensión guarda mensajes nuevos.',
     uBackT: 'De vuelta a tus notas', uBack: 'Escribe tus temas y chats en Obsidian como notas enlazadas. Las notas que ya tienes se enlazan, nunca se copian.',
     agSay: 'Conéctale tu IA y deja de explicarle quién eres.',
-    agLead: 'Cada chat nuevo empieza en blanco, así que pegas el mismo contexto una y otra vez. Brainplug es un segundo cerebro que comparten tus asistentes: un pequeño servidor en tu ordenador al que se conectan Claude Desktop, Claude Code, Cursor y otros clientes MCP. Lo que un asistente aprende hoy, el siguiente ya lo sabe.',
+    agLead: 'Cada chat nuevo empieza en blanco, así que pegas el mismo contexto una y otra vez. Brainplug es un segundo cerebro que comparten tus asistentes: un pequeño servidor en tu ordenador al que se conectan Claude Desktop, Claude Code, Codex, Cursor y otros clientes MCP. Lo que un asistente aprende hoy, el siguiente ya lo sabe.',
     agContext: 'Un resumen corto al empezar la conversación: tu nota «Sobre mí», lo que has pedido a los asistentes que tengan presente y de qué escribes últimamente. Unos cientos de palabras en lugar de un prompt pegado.',
     agRecall: 'El asistente busca solo lo que necesita entre tus notas, chats antiguos, correos y recuerdos, y recibe fragmentos en vez de archivos enteros.',
     agRemember: 'Una decisión, una preferencia, un dato de un proyecto: se guarda como nota Markdown en <code>Brainplug/Memory</code>, dentro de tu bóveda de Obsidian, donde puedes leerla, editarla o borrarla.',
-    agCfg: 'En Claude Desktop, añádelo en Ajustes › Desarrollador › Editar configuración:',
-    agNote: 'Tu nota «Sobre mí» es tuya: los asistentes la leen y nunca la cambian. Olvidar un recuerdo archiva la nota; no la borra. Lo que un asistente lee se envía al modelo de IA con el que funciona, igual que cualquier otra cosa que le enseñes. Para un asistente que no puede ejecutar un servidor local, <code>brainplug brain ~/Vault --context</code> imprime el resumen para pegarlo.',
+    agCfg: '<code>connect</code> encuentra los asistentes de tu ordenador (Claude Desktop, Claude Code, Codex, Cursor, Windsurf, Gemini CLI, VS Code) y añade Brainplug a cada uno, guardando una copia; <code>doctor</code> comprueba que responde. Hasta que la primera versión esté en PyPI, instálalo desde GitHub: <code>uv tool install "brainplug[agent] @ git+https://github.com/juanmariarodriguez2-png/brainplug"</code>.',
+    agNote: 'Tu nota «Sobre mí» es tuya: los asistentes la leen y nunca la cambian. Una preferencia que un asistente guarda para todos los chats futuros espera tu visto bueno, así que una web que engañe a un asistente no puede dar instrucciones a todos. Olvidar un recuerdo archiva la nota; no la borra. Lo que un asistente lee se envía al modelo de IA con el que funciona, igual que cualquier otra cosa que le enseñes. Para un asistente que no puede usar un servidor local, <code>brainplug brain ~/Vault --context</code> imprime el resumen para pegarlo.',
+    sayT: 'Qué puedes decirle', s1: '«¿Qué sabes de mí?»', s1w: 'Tu nota «Sobre mí», tus preferencias permanentes y de qué escribes últimamente.', s2: '«¿Cuándo escribí por primera vez sobre los bosques de algas?»', s2w: 'Lo primero que escribiste sobre ello, de lo más antiguo a lo más reciente, con fechas.', s3: '«¿En qué estaba trabajando la primavera pasada?»', s3w: 'Esos meses, tema a tema.', s4: '«Recuerda que prefiero respuestas cortas.»', s4w: 'Una nota en tu bóveda. Como preferencia permanente, espera tu visto bueno.', s5: '«Ese chat no es mío.»', s5w: 'Sale de tu cerebro; la exportación de la que vino no cambia.', s6: '«Pon mejores nombres a mis temas.»', s6w: 'Propone nombres a partir de las palabras de cada tema y guarda los que aceptes.', rSessions: 'Lo que escribiste a estos agentes de programación en tu ordenador, nunca sus respuestas ni la salida de sus herramientas; las claves que pegaste se ocultan. Añade <code>--sessions</code>.', privacy: 'Privacidad',
     prSay: 'Tus palabras no salen de tu ordenador.',
     p1T: 'No se sube nada', p1: 'Sin cuenta, sin servidor, sin rastreo. Una vez cargada la app web, puedes desconectar el wifi y sigue construyendo tu cerebro. El resultado es un único archivo que se abre sin conexión.',
     p2T: 'Modo privado', p2: 'Un interruptor deja fuera todos los títulos y todo el texto, para que puedas compartir el mapa sin compartir lo que contiene.',
@@ -315,6 +323,7 @@ document.querySelectorAll('pre').forEach(pre => {
     b.textContent = TXT[lang].copied; setTimeout(() => { b.textContent = TXT[lang].copy; }, 1300);
   });
   pre.appendChild(b);
+  pre.classList.add('has-copy');
 });
 document.getElementById('lang').onclick = () => { lang = lang === 'en' ? 'es' : 'en'; apply(); };
 apply();
