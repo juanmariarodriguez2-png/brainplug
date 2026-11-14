@@ -92,7 +92,7 @@ def server_command(vault: str | Path | None, inputs: list[str] | None = None,
         return os.path.abspath(exe), args
     uvx = shutil.which("uvx")
     if temporary and uvx:  # started with uvx: let uvx find it again next time
-        return os.path.abspath(uvx), ["--from", f"{NAME}[agent]", NAME, *args]
+        return os.path.abspath(uvx), [NAME, *args]
     return sys.executable, ["-m", NAME, *args]
 
 
@@ -227,7 +227,7 @@ def _handshake(command: str, args: list[str], timeout: float = 90.0) -> tuple[bo
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
     except ImportError:
-        return False, 'the MCP SDK is missing: pip install "brainplug[agent]"'
+        return False, "the MCP SDK is missing: reinstall Brainplug (uv tool install --force brainplug)"
     import asyncio
 
     import tempfile
@@ -293,7 +293,7 @@ def doctor(vault: str | Path | None = None, say=print) -> int:
         import importlib.metadata as md
         check(True, f"MCP SDK {md.version('mcp')}")
     except Exception:  # noqa: BLE001
-        check(False, "MCP SDK installed", 'pip install "brainplug[agent]"')
+        check(False, "MCP SDK installed", "reinstall Brainplug: uv tool install --force brainplug")
     if vault is None:
         known = obsidian_vaults()
         vault = known[0] if known else None

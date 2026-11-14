@@ -20,6 +20,9 @@
   Windsurf, Gemini CLI, VS Code and LM Studio with an absolute command and a backup;
   `brainplug doctor` checks everything, including a real MCP handshake.
 
+- The MCP SDK is a regular dependency now, so `uvx brainplug mcp --brain VAULT` works as is
+  (`brainplug[agent]` still installs). `server.json` describes Brainplug for the official MCP registry.
+
 ### Sources
 - `--sessions`: what you typed to Claude Code and Codex (never the agent's work; pasted
   keys masked as `[secret]`).

@@ -652,7 +652,8 @@ def make_server(brain: Brain):
         except ImportError:
             from mcp.server.fastmcp import FastMCP as Server  # MCP SDK 1.x
     except ImportError as err:
-        raise SystemExit('The agent server needs the MCP SDK:  pip install "brainplug[agent]"  (or: pip install mcp)') from err
+        raise SystemExit("The memory server needs the MCP SDK, which comes with Brainplug: reinstall it "
+                         "(uv tool install --force brainplug), or pip install mcp") from err
     server = Server("brainplug", instructions=INSTRUCTIONS)
 
     def tool(reads_only: bool):

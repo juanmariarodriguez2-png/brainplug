@@ -1,3 +1,4 @@
+<!-- mcp-name: io.github.juanmariarodriguez2-png/brainplug -->
 # Brainplug
 
 **Plug your brain into any AI.** A second brain for you and for your AI assistants: Brainplug turns your AI chats, notes,
@@ -21,7 +22,7 @@ Brainplug the background lives in one place, as Markdown in your own vault, and 
 assistant reads from it and adds to it:
 
 ```bash
-uv tool install "brainplug[agent]"           # or: pipx install "brainplug[agent]"
+uv tool install brainplug                    # or: pipx install brainplug
 brainplug brain ~/Documents/MyVault           # creates MyVault/Brainplug: "About me" and Memory/
 brainplug connect ~/Documents/MyVault         # adds it to Claude Desktop, Claude Code, Cursor, Codex…
 brainplug doctor ~/Documents/MyVault          # checks that it answers, end to end
@@ -30,7 +31,7 @@ brainplug doctor ~/Documents/MyVault          # checks that it answers, end to e
 `brainplug brain ~/Documents/MyVault --draft-about` writes a first draft of your "About me"
 note from what you have written, while it is still empty. Until the first release reaches PyPI,
 install it from GitHub:
-`uv tool install "brainplug[agent] @ git+https://github.com/juanmariarodriguez2-png/brainplug"`.
+`uv tool install "brainplug @ git+https://github.com/juanmariarodriguez2-png/brainplug"`.
 Add `--sessions` to `connect` to include what you typed to Claude Code and Codex, and put
 export files after the vault to include what you wrote before (`… MyVault chatgpt-export.zip`).
 

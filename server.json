@@ -1,0 +1,38 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.juanmariarodriguez2-png/brainplug",
+  "title": "Brainplug",
+  "description": "A second brain your AI assistants share: your notes, chats and mail, and memories kept as Markdown.",
+  "repository": {
+    "url": "https://github.com/juanmariarodriguez2-png/brainplug",
+    "source": "github"
+  },
+  "websiteUrl": "https://brainplug.app/",
+  "version": "0.4.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "brainplug",
+      "version": "0.4.0",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        },
+        {
+          "type": "named",
+          "name": "--brain",
+          "isRequired": true,
+          "format": "filepath",
+          "valueHint": "vault",
+          "description": "Your Obsidian vault or any folder: it is read, and memories are saved in its Brainplug/Memory folder."
+        }
+      ]
+    }
+  ]
+}
