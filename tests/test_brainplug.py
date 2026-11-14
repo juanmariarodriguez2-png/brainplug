@@ -227,6 +227,21 @@ def test_private_mode_hides_titles_and_text(tmp_path):
     assert all(f'"t":"{i.title}"' not in page for i in items[:20])
 
 
+def test_private_mode_keeps_no_topic_keywords(tmp_path):
+    # Renaming a revealing topic must hide it: its keywords are words from your text.
+    items = demo.generate(n=120)
+    shown = analysis.analyse(items, TZ, n_topics=6)
+    secret = {w for t in shown["topics"] for w in t["terms"] if len(w) >= 5}
+    assert secret  # the demo data has keywords to hide
+    rename = {t["id"]: f"Area {t['id'] + 1}" for t in shown["topics"]}
+    payload = analysis.analyse(items, TZ, n_topics=6, private=True, rename=rename)
+    assert all(t["terms"] == [] for t in payload["topics"])
+    page = render(payload, tmp_path / "p.html").read_text(encoding="utf-8")
+    start = page.index('<script id="bp-data"')
+    data = page[start:page.index("</script>", start)].lower()
+    assert not [w for w in secret if w in data]
+
+
 def test_render_is_self_contained(tmp_path):
     items = demo.generate(n=60)
     items[0].title = "</script><b>x</b>"

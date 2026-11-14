@@ -89,6 +89,7 @@ def test_javascript_private_mode_leaves_your_text_out(tmp_path):
     js = json.loads((tmp_path / "js.json").read_text(encoding="utf-8"))
     assert js["meta"]["private"] is True and js["numbers"]["longest"]["title"] is None
     assert all(it["t"] is None and it["x"] is None and it["tm"] is None for it in js["items"])
+    assert all(t["terms"] == [] for t in js["topics"])  # keywords are words from your text too
     html = (tmp_path / "js.html").read_text(encoding="utf-8")
     start = html.index('<script id="bp-data"')
     data = html[start:html.index("</script>", start)]

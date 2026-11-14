@@ -553,7 +553,8 @@ export function analyse(items, options = {}) {
 
   const terms = labelTopics(X, labels, k, vocab);
   const topics = terms.map((t, i) => ({
-    id: i, name: rename[i] || (t.length ? t.slice(0, 2).join(' · ') : `Topic ${i + 1}`), terms: t,
+    // keywords are words taken from your text: a private file keeps none of them
+    id: i, name: rename[i] || (t.length ? t.slice(0, 2).join(' · ') : `Topic ${i + 1}`), terms: isPrivate ? [] : t,
     color: PALETTE[i], count: sizes[i], share: round(sizes[i] / n, 3),
   }));
   progress('connections');

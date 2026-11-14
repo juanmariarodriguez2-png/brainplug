@@ -786,7 +786,7 @@ function drawTable() {
 function contextCard() {
   const names = list => list.map(r => TP[r.k].name).join(', ');
   const out = [L.ctxHead(N.first, N.last), '', L.ctxTopics];
-  TP.slice(0, 8).forEach(t => out.push(`- ${t.name} (${Math.round(t.share * 100)}%): ${t.terms.join(', ')}`));
+  TP.slice(0, 8).forEach(t => out.push(`- ${t.name} (${Math.round(t.share * 100)}%)${t.terms.length ? ': ' + t.terms.join(', ') : ''}`));
   if (R.rising.length) out.push('', `${L.ctxNow} ${names(R.rising)}.`);
   if (R.dormant.length) out.push(`${L.ctxDrop} ${names(R.dormant)}.`);
   out.push(L.ctxHabit(L.weekdaysLong[N.busiest_weekday], N.busiest_hour), '', L.ctxEnd);

@@ -338,7 +338,8 @@ def analyse(items: list[Item], tz: tzinfo | None = None, n_topics: int | None = 
     topics = [{
         "id": i,
         "name": rename.get(i) or (" · ".join(terms[i][:2]) if terms[i] else f"Topic {i + 1}"),
-        "terms": terms[i], "color": PALETTE[i], "count": int(sizes[i]),
+        # keywords are words taken from your text: a private file keeps none of them
+        "terms": [] if private else terms[i], "color": PALETTE[i], "count": int(sizes[i]),
         "share": round(float(sizes[i]) / n, 3),
     } for i in range(k)]
 
