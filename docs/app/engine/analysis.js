@@ -5,7 +5,7 @@
 import * as brain from './brain.js';
 import { STOP_WORDS } from './stopwords.js';
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.4.0';
 const PALETTE = ['#4cc9f0', '#f72585', '#b8f35a', '#ffb703', '#9d4edd', '#2ec4b6', '#ff6b6b', '#ffd6a5', '#80ffdb',
   '#c77dff', '#f15bb5', '#00bbf9', '#fee440', '#a0c4ff', '#ff9f1c', '#06d6a0'];
 const KINDS = ['chat', 'note', 'message'];
