@@ -20,6 +20,9 @@ from make_inputs import write_inputs, write_overlap, write_sessions  # noqa: E40
 
 NODE = shutil.which("node")
 ENV = {**os.environ, "TZ": "Europe/Madrid", "PYTHONPATH": str(ROOT)}
+# On Windows the C runtime reads TZ in its own format (CET-1CEST) and misreads "Europe/Madrid" as UTC,
+# so Python gets no TZ there and uses the system zone, which CI sets to the same rules (tzutil).
+PY_ENV = {k: v for k, v in ENV.items() if not (sys.platform == "win32" and k == "TZ")}
 
 
 def test_generated_files_are_current():
@@ -52,7 +55,7 @@ def test_javascript_engine_matches_python(tmp_path):
     # --tz as well as TZ: Node honours TZ everywhere, Python ignores it on Windows
     subprocess.run([sys.executable, "-m", "brainplug", "build", *inputs, "--topics", "9", "--title", "Parity",
                     "--tz", ENV["TZ"], "-o", str(tmp_path / "py.html"), "--json", str(tmp_path / "py.json")],
-                   check=True, env=ENV, capture_output=True)
+                   check=True, env=PY_ENV, capture_output=True)
     done = subprocess.run([NODE, str(ROOT / "tests" / "js" / "run_engine.mjs"), str(folder), str(tmp_path / "js.json"),
                            "--topics", "9", "--html"], check=True, env=ENV, capture_output=True, encoding="utf-8")
     # These fixtures omit --me: Gmail and WhatsApp both have confident detections.
