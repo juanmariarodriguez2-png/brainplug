@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from brainplug import notion_api, sources
-from helpers import tiny_docx, tiny_pdf
+from helpers import FILE_DATE, dated_documents, tiny_docx, tiny_pdf
 from make_inputs import write_overlap, write_sessions
 
 GEMINI = [
@@ -190,6 +190,19 @@ def test_word_and_pdf(tmp_path):
     assert pdf.title == "My thesis draft" and "minimum wages" in pdf.text
     assert (pdf.created.year, pdf.created.month) == (2025, 3)
     assert len(sources.load([tmp_path / "thesis.pdf"])) == 1  # a PDF you pass yourself always counts
+
+
+
+def test_document_dates_that_are_placeholders_or_impossible(tmp_path):
+    got = {it.title: it.created.date().isoformat() for it in sources.load(dated_documents(tmp_path))}
+    saved = FILE_DATE.date().isoformat()
+    assert got == {
+        "ai summary": saved,  # python-docx's 2013 template date: the file's own date instead
+        "edited summary": "2026-05-18",  # saved again in Word: its modified date is real
+        "impossible": saved,
+        "real": "2024-10-02",
+        "Report": saved,  # a PDF claiming 1970
+    }
 
 
 def test_dates_with_seconds_and_12_hour_clock():

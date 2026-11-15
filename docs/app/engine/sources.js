@@ -54,6 +54,18 @@ export function parseDate(value) {
   const out = Date.UTC(y, mo - 1, d, hour, minute);
   return new Date(out).getUTCDate() === d ? out : null;
 }
+
+// python-docx, which AI assistants often use to write Word files, stamps every new document with
+// the date of its own template, so those files all claim to be from 23 December 2013.
+const TEMPLATE_DATES = new Set([Date.UTC(2013, 11, 23, 23, 15)]);
+const EARLIEST = Date.UTC(1990, 0, 1);
+
+/** A document's own date, unless it is a known placeholder or impossible. */
+function realDate(value) {
+  const when = typeof value === 'number' ? value : parseDate(value);
+  if (when == null || !Number.isFinite(when) || TEMPLATE_DATES.has(when) || when < EARLIEST) return null;
+  return when > Date.now() + 2 * 86400000 ? null : when;
+}
 const fromEpoch = v => (typeof v === 'number' && v > 0 && Number.isFinite(v) ? v * 1000
   : (typeof v === 'string' && +v > 0 ? +v * 1000 : null));
 
@@ -687,9 +699,12 @@ async function parseDocx(file, rel, ctx) {
   const text = squash(paragraphs.join(' ').replace(/https?:\/\/\S+/g, ' '));
   if (countWords(text) < 3) return null;
   const title = /<dc:title>([^<]+)<\/dc:title>/.exec(coreXml);
-  const created = /<dcterms:created[^>]*>([^<]+)<\/dcterms:created>/.exec(coreXml);
+  const stamp = tag => {
+    const m = new RegExp(`<dcterms:${tag}[^>]*>([^<]+)</dcterms:${tag}>`).exec(coreXml);
+    return m ? realDate(m[1]) : null;
+  };
   return item(`word:${rel}`, (title ? unescapeHtml(title[1]).trim() : '') || stem(file.path),
-    (created ? parseDate(created[1]) : null) ?? file.mtime, 'word', 'note', text.slice(0, MAX_NOTE));
+    stamp('created') ?? stamp('modified') ?? file.mtime, 'word', 'note', text.slice(0, MAX_NOTE));
 }
 
 async function parsePdf(file, rel, ctx) {
@@ -698,7 +713,7 @@ async function parsePdf(file, rel, ctx) {
   try { got = await ctx.pdfText(await file.bytes(), baseName(file.path)); } catch (err) { ctx.note(`PDF: could not read ${baseName(file.path)} (${(err && err.message) || err})`); return null; }
   const text = squash((got && got.text || '').replace(/https?:\/\/\S+/g, ' '));
   if (countWords(text) < 3) return null;  // scanned pages have no text layer
-  return item(`pdf:${rel}`, (got.title || '').trim() || stem(file.path), got.created ?? file.mtime, 'pdf', 'note', text.slice(0, MAX_NOTE));
+  return item(`pdf:${rel}`, (got.title || '').trim() || stem(file.path), realDate(got.created) ?? file.mtime, 'pdf', 'note', text.slice(0, MAX_NOTE));
 }
 
 // ------------------------------------------------- files, folders and ZIPs
