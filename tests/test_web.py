@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_web  # noqa: E402
 from make_inputs import write_inputs, write_overlap, write_sessions  # noqa: E402
+from helpers import dated_documents  # noqa: E402
 
 NODE = shutil.which("node")
 ENV = {**os.environ, "TZ": "Europe/Madrid", "PYTHONPATH": str(ROOT)}
@@ -243,3 +244,13 @@ def test_javascript_uses_saved_topic_names_like_python(tmp_path):
     for payload in (py, js):
         named = [t for t in payload["topics"] if t["name"] == "Money & investing"]
         assert len(named) == 1 and set(named[0]["terms"]) & saved
+
+
+@pytest.mark.skipif(not NODE, reason="needs Node.js")
+def test_document_dates_match(tmp_path):
+    from brainplug import sources
+    words = [p for p in dated_documents(tmp_path) if p.suffix == ".docx"]  # Node has no PDF reader here
+    py = sorted([it.title, round(it.created.timestamp() * 1000)] for it in sources.load(words))
+    done = subprocess.run([NODE, str(ROOT / "tests/js/dates.mjs"), *map(str, words)],
+                          check=True, env=ENV, capture_output=True, encoding="utf-8", timeout=30)
+    assert sorted(json.loads(done.stdout)) == py and len(py) == 4

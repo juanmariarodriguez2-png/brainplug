@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "brainplug"
-version = "0.4.1"
+version = "0.4.2"
 description = "A second brain for you and your AI assistants: a 3D map of everything you write and a memory they plug into. 100% local."
 readme = "README.md"
 license = "MIT"

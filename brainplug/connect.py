@@ -26,6 +26,7 @@ from pathlib import Path
 from . import __version__, memory
 
 NAME = "brainplug"
+_QUIT = {"win32": "right-click its icon by the clock › Quit", "darwin": "Claude › Quit Claude (⌘Q)"}
 FIRST_QUESTIONS = (
     '"What do you know about me?"',
     '"When did I first write about <a topic>?"',
@@ -215,12 +216,13 @@ def connect(vault: str | Path | None, inputs: list[str] | None = None, only: lis
     unknown = sorted(set(only or []) - {c.key for c in clients()})
     if unknown:
         say(f"Unknown assistant(s): {', '.join(unknown)}. Known: {', '.join(c.key for c in clients())}.")
-    connected = 0
+    connected, desktop = 0, False
     for client in wanted:
         if not client.found() and not only:
             continue
         state = connect_one(client, command, args, dry)
         connected += state in ("added", "updated", "unchanged")
+        desktop |= client.key == "claude-desktop" and state in ("added", "updated", "unchanged")
         where = f" ({client.config})" if client.config and client.key not in ("claude-code",) else ""
         if state == "unreadable":
             state = "its settings file could not be read, so it was left as it is; add this by hand:\n    " + json.dumps(
@@ -232,7 +234,13 @@ def connect(vault: str | Path | None, inputs: list[str] | None = None, only: lis
         say("  No assistant found on this computer. Install Claude Desktop, Claude Code, Cursor or Codex, "
             "or pass --only to write a settings file anyway.")
     if connected and not dry:
-        say("\nRestart the assistants that were open. Then ask, for example:")
+        say("\nRestart the assistants that were open.")
+        if desktop:
+            say(f"  Claude Desktop keeps running when you close its window: "
+                f"{_QUIT.get(sys.platform, 'quit it from its menu')}, then open it again.\n"
+                "  It has to be the desktop app: claude.ai in a browser, even installed as an app,\n"
+                "  cannot start programs on your computer. In a new chat, + › Connectors lists brainplug.")
+        say("Then ask, for example:")
         say("  " + "\n  ".join(FIRST_QUESTIONS))
         say(f"\nCheck it any time with: brainplug doctor \"{vault}\"")
     return 0

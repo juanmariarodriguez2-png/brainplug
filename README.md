@@ -38,6 +38,12 @@ Cursor, Windsurf, Gemini CLI, VS Code, LM Studio), adds one `brainplug` entry to
 settings with an absolute path (desktop apps do not see your terminal's PATH), keeps
 everything else there, and backs the file up first. `--print` shows what it would change.
 
+**Claude Desktop** reads its settings only when it starts, and it keeps running after you close
+its window: quit it (on Windows, right-click its icon by the clock › Quit; on a Mac, ⌘Q) and
+open it again. It has to be the desktop app: claude.ai in a browser, even installed as an app
+from Chrome or Edge, cannot start programs on your computer. In a new chat, **+ › Connectors**
+lists `brainplug` once it is running.
+
 | Tool | What the assistant does with it |
 |---|---|
 | `context` | Gets a short briefing at the start of a conversation: your "About me" note, what you asked assistants to keep in mind, what you are writing about lately. A few hundred words instead of a pasted prompt. |

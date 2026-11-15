@@ -33,7 +33,7 @@ import zipfile
 import zlib
 from collections import Counter
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email import policy
 from email.utils import getaddresses, parsedate_to_datetime
 from pathlib import Path
@@ -136,6 +136,20 @@ def parse_date(value: Any) -> datetime | None:
         return datetime(y, mo, d, hour, minute, tzinfo=timezone.utc)
     except ValueError:
         return None
+
+
+# python-docx, which AI assistants often use to write Word files, stamps every new document with
+# the date of its own template, so those files all claim to be from 23 December 2013.
+_TEMPLATE_DATES = frozenset({datetime(2013, 12, 23, 23, 15, tzinfo=timezone.utc)})
+_EARLIEST = datetime(1990, 1, 1, tzinfo=timezone.utc)
+
+
+def _real_date(value: Any) -> datetime | None:
+    """A document's own date, unless it is a known placeholder or impossible."""
+    when = _aware(value) if isinstance(value, datetime) else parse_date(value)
+    if when is None or when in _TEMPLATE_DATES or when < _EARLIEST:
+        return None
+    return None if when > datetime.now(timezone.utc) + timedelta(days=2) else when
 
 
 # --------------------------------------------------------------------------- #
@@ -847,10 +861,11 @@ def parse_docx(path: Path, rel: Path) -> Item | None:
     if len(text.split()) < 3:
         return None
     title = re.search(r"<dc:title>([^<]+)</dc:title>", core)
-    created = re.search(r"<dcterms:created[^>]*>([^<]+)</dcterms:created>", core)
+    stamps = (re.search(rf"<dcterms:{tag}[^>]*>([^<]+)</dcterms:{tag}>", core) for tag in ("created", "modified"))
+    created = next((d for d in (_real_date(m.group(1)) for m in stamps if m) if d), None)
     return Item(
         id=f"word:{rel.as_posix()}", title=(html.unescape(title.group(1)).strip() if title else "") or path.stem,
-        created=(parse_date(created.group(1)) if created else None) or _file_date(path),
+        created=created or _file_date(path),
         source="word", kind="note", text=text[:MAX_NOTE_BYTES],
     )
 
@@ -875,7 +890,7 @@ def parse_pdf(path: Path, rel: Path) -> Item | None:
         return None  # scanned pages have no text layer
     return Item(
         id=f"pdf:{rel.as_posix()}", title=title or path.stem,
-        created=_aware(created) if isinstance(created, datetime) else _file_date(path),
+        created=(_real_date(created) if isinstance(created, datetime) else None) or _file_date(path),
         source="pdf", kind="note", text=text[:MAX_NOTE_BYTES],
     )
 

@@ -54,6 +54,7 @@ def test_connect_adds_brainplug_to_every_assistant_found(home, tmp_path, monkeyp
         assert tomllib.loads(toml)["mcp_servers"]["brainplug"] == entry
     out = capsys.readouterr().out
     assert "Restart the assistants" in out and "What do you know about me?" in out and "Windsurf" not in out
+    assert "Claude Desktop keeps running when you close its window" in out and "claude.ai in a browser" in out
     assert (vault / "Brainplug" / "About me.md").exists()
 
     # once more: nothing changes and no new backup is made

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.2 — 2026-11-15
+
+Found by the first real use, asking "when did I first write about…":
+- Word files written by AI assistants no longer claim to be from 23 December 2013. python-docx,
+  which they often use to write them, stamps every new document with its template's date. That
+  date, and impossible ones (before 1990 or in the future, in Word files and PDFs alike), are now
+  ignored: the document's "modified" date is used when it is real, and otherwise the file's own
+  date. The index kept by the MCP server is rebuilt once with the new version, so the corrected
+  dates show up after updating.
+- `brainplug connect` says how to restart Claude Desktop, which keeps running after its window
+  closes, and that claude.ai in a browser, even installed as an app, cannot start Brainplug.
+
 ## 0.4.1 — 2026-11-15
 
 Found by the first install on Windows:
