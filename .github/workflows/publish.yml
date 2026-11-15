@@ -42,6 +42,8 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true  # a GitHub release for a version already on PyPI changes nothing
 
   registry:
     # the MCP Registry checks the PyPI package (and the mcp-name line in its README)
@@ -73,6 +75,12 @@ jobs:
       - run: ./mcp-publisher login github-oidc
       - name: Publish to the MCP Registry (PyPI can take a minute to show a new release)
         run: |
+          name=$(python3 -c 'import json; print(json.load(open("server.json"))["name"])')
+          version=$(python3 -c 'import json; print(json.load(open("server.json"))["version"])')
+          if curl --fail --silent --show-error "https://registry.modelcontextprotocol.io/v0/servers?search=$name&limit=100" \
+              | python3 -c 'import json, sys; sys.exit(0 if any((s.get("server") or s).get("version") == sys.argv[1] for s in json.load(sys.stdin).get("servers", [])) else 1)' "$version"; then
+            echo "$name $version is already in the MCP Registry"; exit 0
+          fi
           for attempt in 1 2 3 4 5; do
             ./mcp-publisher publish && exit 0
             echo "Attempt $attempt failed; waiting for PyPI"; sleep 60
