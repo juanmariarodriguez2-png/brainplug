@@ -28,6 +28,10 @@ brainplug connect ~/Documents/MyVault         # adds it to Claude Desktop, Claud
 brainplug doctor ~/Documents/MyVault          # checks that it answers, end to end
 ```
 
+No `uv` yet? Install it, then open a new terminal. On Windows, in PowerShell:
+`powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`.
+On macOS and Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`.
+
 `brainplug brain ~/Documents/MyVault --draft-about` writes a first draft of your "About me"
 note from what you have written, while it is still empty.
 Add `--sessions` to `connect` to include what you typed to Claude Code and Codex, and put
