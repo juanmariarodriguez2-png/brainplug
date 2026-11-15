@@ -29,9 +29,7 @@ brainplug doctor ~/Documents/MyVault          # checks that it answers, end to e
 ```
 
 `brainplug brain ~/Documents/MyVault --draft-about` writes a first draft of your "About me"
-note from what you have written, while it is still empty. Until the first release reaches PyPI,
-install it from GitHub:
-`uv tool install "brainplug @ git+https://github.com/juanmariarodriguez2-png/brainplug"`.
+note from what you have written, while it is still empty.
 Add `--sessions` to `connect` to include what you typed to Claude Code and Codex, and put
 export files after the vault to include what you wrote before (`… MyVault chatgpt-export.zip`).
 
