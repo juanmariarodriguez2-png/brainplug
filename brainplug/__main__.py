@@ -174,6 +174,11 @@ def main(argv: list[str] | None = None) -> int:
         vault = getattr(args, "brain", None) or getattr(args, "vault", None)
         if args.cmd == "mcp" and not args.inputs and not args.notion and not vault and not args.sessions:
             ap.error("mcp needs your vault or your files, e.g.: brainplug mcp --brain ~/Vault export.zip")
+        if vault and not Path(vault).expanduser().is_dir():
+            if args.cmd == "mcp" or args.remember or args.review or args.context or args.draft_about:
+                ap.error(f'{vault} does not exist. Check the path; to start a new, empty brain there, '
+                         f'run: brainplug brain "{vault}"')
+            print(f"Creating a new folder for your brain: {Path(vault).expanduser().resolve()}")
         if args.cmd == "brain" and args.remember:
             path = memory.remember(vault, args.remember, kind=args.kind, pin=args.pin, source="me")
             print(f"Saved {path.resolve()}")

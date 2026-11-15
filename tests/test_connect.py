@@ -16,6 +16,7 @@ def home(tmp_path, monkeypatch):
     h = tmp_path / "home"
     h.mkdir()
     for name, value in (("HOME", h), ("USERPROFILE", h), ("APPDATA", h / "AppData" / "Roaming"),
+                        ("LOCALAPPDATA", h / "AppData" / "Local"),  # never a real Windows app package
                         ("XDG_CONFIG_HOME", h / ".config"), ("BRAINPLUG_CACHE", tmp_path / "cache")):
         monkeypatch.setenv(name, str(value))
     monkeypatch.delenv("CODEX_HOME", raising=False)
@@ -105,6 +106,7 @@ def test_doctor_checks_everything_end_to_end(home, tmp_path, monkeypatch, capsys
     assert main(["doctor", str(vault)]) == 0
     out = capsys.readouterr().out
     assert "the server starts and answers" in out and "All good." in out and "✗" not in out
+    assert "your brain: 21 items" in out  # it waits for the files to be read, then says how much is there
     (home / ".cursor" / "mcp.json").write_text('{"mcpServers": {"brainplug": {"command": "/no/such/brainplug", "args": []}}}')
     assert main(["doctor", str(vault)]) == 1
     assert "brainplug connect" in capsys.readouterr().out
@@ -122,3 +124,17 @@ def test_a_hanging_assistant_cli_is_reported_not_fatal(monkeypatch):
         raise bc.subprocess.TimeoutExpired("claude", 60)
     monkeypatch.setattr(bc.subprocess, "run", hang)
     assert bc._run(["claude", "mcp", "add"]).returncode == 1
+
+
+def test_connect_finds_claude_desktop_installed_as_a_windows_package(home, tmp_path, monkeypatch, capsys):
+    # The packaged (MSIX) app reads a virtualized copy of %APPDATA%\\Claude under its package folder.
+    monkeypatch.setattr(bc.shutil, "which", fake_which({"brainplug": "/opt/tools/brainplug"}))
+    package = home / "AppData" / "Local" / "Packages" / "Claude_pzs8sxrjxfjjc"
+    package.mkdir(parents=True)
+    vault = tmp_path / "Vault"
+    vault.mkdir()
+    assert main(["connect", str(vault)]) == 0
+    config = package / "LocalCache" / "Roaming" / "Claude" / "claude_desktop_config.json"
+    assert json.loads(config.read_text())["mcpServers"]["brainplug"]["args"] == ["mcp", "--brain", str(vault.resolve())]
+    assert not bc._app_config("Claude").exists()  # the copy this app does not read is not created
+    assert "Claude Desktop" in capsys.readouterr().out

@@ -64,11 +64,24 @@ class Client:
         return bool((self.cli and shutil.which(self.cli)) or (self.marker and self.marker.exists()))
 
 
+def _claude_desktop() -> list[Client]:
+    """Claude Desktop reads %APPDATA%\\Claude (or the macOS/Linux equivalent). Installed as a Windows
+    app package (MSIX), it reads a virtualized copy instead, under
+    %LOCALAPPDATA%\\Packages\\Claude_<id>\\LocalCache\\Roaming\\Claude, and its own "Edit Config"
+    button may open the copy it does not read. Both get the entry when both exist."""
+    found = [Client("claude-desktop", "Claude Desktop", _app_config("Claude") / "claude_desktop_config.json",
+                    marker=_app_config("Claude"))]
+    local = os.environ.get("LOCALAPPDATA")
+    for package in sorted(Path(local).glob("Packages/Claude_*")) if local else []:
+        folder = package / "LocalCache" / "Roaming" / "Claude"
+        found.append(Client("claude-desktop", "Claude Desktop", folder / "claude_desktop_config.json", marker=package))
+    return found
+
+
 def clients() -> list[Client]:
     home = _home()
     return [
-        Client("claude-desktop", "Claude Desktop", _app_config("Claude") / "claude_desktop_config.json",
-               marker=_app_config("Claude")),
+        *_claude_desktop(),
         Client("claude-code", "Claude Code", cli="claude", marker=home / ".claude"),
         Client("cursor", "Cursor", home / ".cursor" / "mcp.json", marker=home / ".cursor"),
         Client("codex", "Codex", _codex_home() / "config.toml", cli="codex", marker=_codex_home()),
@@ -247,19 +260,21 @@ def _handshake(command: str, args: list[str], timeout: float = 90.0) -> tuple[bo
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 tools = [t.name for t in (await session.list_tools()).tools]
-                briefing = (await session.call_tool("context", {})).content[0].text
-                return time.monotonic() - began, tools, briefing
+                await session.call_tool("context", {})  # answers at once, before the files are read
+                answered = time.monotonic() - began
+                summary = (await session.call_tool("overview", {})).content[0].text  # waits for the index
+                return answered, tools, summary
 
     try:
-        took, tools, briefing = asyncio.run(asyncio.wait_for(talk(), timeout))
+        took, tools, summary = asyncio.run(asyncio.wait_for(talk(), timeout))
     except Exception as err:  # noqa: BLE001  (shown to the person, who can act on it)
         log.seek(0)
         said = " | ".join(line.strip() for line in log.read().splitlines()[-3:] if line.strip())
         return False, f"the server did not answer: {type(err).__name__}: {err}" + (f" (it said: {said})" if said else "")
     finally:
         log.close()
-    last = [line for line in briefing.splitlines() if line.strip()][-1:]
-    return True, f"answered in {took:.1f} s with {len(tools)} tools; it says: {last[0] if last else '(empty)'}"
+    first = next((line for line in summary.splitlines() if line.strip()), "(empty)")
+    return True, f"answered in {took:.1f} s with {len(tools)} tools; your brain: {first}"
 
 
 def _registered(client: Client) -> tuple[str, list[str]] | None:

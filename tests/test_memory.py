@@ -315,3 +315,13 @@ def test_a_vault_inside_another_input_is_read_once(tmp_path):
     (tmp_path / "Docs" / "elsewhere.md").write_text("a loose note outside the vault about tide pools", encoding="utf-8")
     items = sources.load([vault, tmp_path / "Docs"])
     assert len(items) == 11 and len({i.text for i in items}) == 11
+
+
+def test_brain_does_not_create_a_mistyped_folder(tmp_path, capsys):
+    import pytest
+    for flag in ("--draft-about", "--context", "--review"):
+        with pytest.raises(SystemExit):
+            main(["brain", str(tmp_path / "C" / "ruta" / "de" / "su" / "bóveda"), flag])
+    assert not (tmp_path / "C").exists() and "does not exist" in capsys.readouterr().err
+    assert main(["brain", str(tmp_path / "New brain")]) == 0  # setting up a new brain may create it, and says so
+    assert "Creating a new folder for your brain" in capsys.readouterr().out
