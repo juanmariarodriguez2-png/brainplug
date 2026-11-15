@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.1 — 2026-11-15
+
+Found by the first install on Windows:
+- `brainplug connect` finds Claude Desktop installed as a Windows app package (MSIX), which
+  reads its settings from a copy under `%LOCALAPPDATA%\Packages\Claude_…\LocalCache\Roaming\Claude`
+  instead of `%APPDATA%\Claude` (its own "Edit Config" button may open the other one).
+- `brainplug doctor` waits for your files to be read and says how big your brain is.
+- `brainplug brain` no longer creates a folder for a path that does not exist when you ask for
+  `--draft-about`, `--context`, `--review` or `--remember` (or start `mcp` on it); setting up a new
+  brain still creates the folder, and says so.
+
 ## 0.4.0 — 2026-11-14
 
 ### Memory for your assistants (MCP server)
