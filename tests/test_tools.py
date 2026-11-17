@@ -60,7 +60,9 @@ def test_mcp_server_round_trip(tmp_path):
                 await session.initialize()
                 call = lambda name, **args: session.call_tool(name, args)  # noqa: E731
                 text = lambda result: result.content[0].text  # noqa: E731
-                tools = [t.name for t in (await session.list_tools()).tools]
+                listed = (await session.list_tools()).tools
+                tools = [t.name for t in listed]
+                hints = {t.name: t.annotations.model_dump(by_alias=True, exclude_none=True) for t in listed}
                 found = text(await call("recall", query="portfolio diversification", limit=3))
                 saved = text(await call("remember", text="The capstone project is about tide pools and crab behaviour",
                                         title="Capstone topic", kind="project", pin=True, saved_by="Test client"))
@@ -68,14 +70,19 @@ def test_mcp_server_round_trip(tmp_path):
                 briefing = text(await call("context"))
                 memory.approve(vault, next((vault / "Brainplug" / "Memory").glob("*Capstone topic.md")).stem)
                 approved = text(await call("context"))
-                return tools, found, saved, again, briefing, approved
+                return tools, hints, found, saved, again, briefing, approved
 
     try:
-        tools, found, saved, again, briefing, approved = asyncio.run(asyncio.wait_for(talk(), timeout=90))
+        tools, hints, found, saved, again, briefing, approved = asyncio.run(asyncio.wait_for(talk(), timeout=90))
     finally:
         log.close()
     assert tools == ["context", "recall", "remember", "read", "forget", "exclude", "overview", "topic", "timeline",
                      "review", "name_topic"]
+    # every tool states all four hints as true/false: clients (and directories) can tell what may run unasked
+    writes = {"remember", "forget", "exclude", "name_topic"}
+    for name in tools:
+        assert hints[name] == {"readOnlyHint": name not in writes, "destructiveHint": False,
+                               "idempotentHint": name not in writes, "openWorldHint": False}, name
     assert found.startswith("#") and "· Notes ·" in found
     note = vault / "Brainplug" / "Memory"
     [path] = list(note.glob("*Capstone topic.md"))

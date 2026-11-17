@@ -11,6 +11,8 @@ they need, and save what they learn as notes in your Obsidian vault. Nothing is 
 **[Website and live demo](https://brainplug.app/)** ·
 **[Make yours in the browser](https://brainplug.app/app/)**
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/juanmariarodriguez2-png-brainplug-14yua6?v=b8dafcd9c2ff85622aedbebe6ecabff5&variant=verified)](https://m8ven.ai/mcp/juanmariarodriguez2-png-brainplug-14yua6?s=readme)
+
 The animation and the screenshots use invented demo data, not anyone's real writing.
 
 ---

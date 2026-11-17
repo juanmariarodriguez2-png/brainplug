@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Each MCP tool now spells out its four hints (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
+  `openWorldHint`) as plain true/false, so directories that read the code, not only clients that
+  ask the server, see them. What the server tells clients is unchanged, and a test now checks it.
+
 ## 0.4.2 — 2026-11-15
 
 Found by the first real use, asking "when did I first write about…":
